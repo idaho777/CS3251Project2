@@ -73,7 +73,6 @@ public class RTPPacketHeader {
 		header[CHKSUM + 3]	= (byte) (checksum & 0x000F);
 	}
 	
-	
 	public byte[] getHeaderBytes()
 	{
 		return header;

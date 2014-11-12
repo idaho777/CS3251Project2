@@ -20,8 +20,6 @@ public class RTPServer {
 		
 	}
 	
-	
-	
 	public void close()
 	{
 		
