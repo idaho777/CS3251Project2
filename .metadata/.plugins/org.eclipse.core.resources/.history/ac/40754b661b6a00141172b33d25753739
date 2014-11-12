@@ -1,0 +1,16 @@
+
+import java.net.DatagramSocketImpl;
+import java.net.DatagramSocketImplFactory;
+
+public class RTPSocket implements DatagramSocketImplFactory{
+
+	@Override
+	public DatagramSocketImpl createDatagramSocketImpl() {
+		
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	
+
+}
