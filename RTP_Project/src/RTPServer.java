@@ -1,5 +1,7 @@
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 /**
  * 
@@ -7,12 +9,27 @@ import java.net.DatagramPacket;
  *
  */
 public class RTPServer {
-	
-	String ipAddress;
+
+	private short srcPort, destPort;
+	private InetAddress srcIpAddress, destIpAddress;
+	private int windowSize;
+	private DatagramSocket socket;
 	
 	public RTPServer()
 	{
 		
+	}
+	
+	public RTPServer(short sourcePort, short destinationPort, String destinationIpAddress)
+	{
+		srcPort = sourcePort;
+		destPort = destinationPort;
+		try {
+			destIpAddress = InetAddress.getByName(destinationIpAddress);
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void openSession()
@@ -25,4 +42,8 @@ public class RTPServer {
 		
 	}
 	
+	public static void main(String[] args)
+	{
+		System.out.println("asdf");
+	}
 }
