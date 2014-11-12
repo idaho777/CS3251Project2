@@ -1,3 +1,4 @@
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
@@ -10,8 +11,8 @@ import java.net.UnknownHostException;
  */
 public class RTPClient {
 	
-	private short portNumber, bindPort;
-	private InetAddress ipAddress;
+	private short srcPort, destPort;
+	private InetAddress destIpAddress, srcIpAddress;
 	private int windowSize;
 	private DatagramSocket socket;
 	
@@ -20,15 +21,17 @@ public class RTPClient {
 		
 	}
 	
-	public RTPClient(short portNumber, short bindPort, String ipAddress){
-		this.portNumber=portNumber;
-		this.bindPort=bindPort;
+	public RTPClient(short srcPort, short destPort, String destIpAddress){
+		this.srcPort=srcPort;
+		this.destPort=destPort;
 		try {
-			this.ipAddress = InetAddress.getByName(ipAddress);
+			this.srcIpAddress = InetAddress.getLocalHost();
+			this.destIpAddress = InetAddress.getByName(destIpAddress);
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 	}
 	
 	/**
@@ -37,6 +40,8 @@ public class RTPClient {
 	public void setup(){
 		RTPPacketHeader header = new RTPPacketHeader();
 		header.setFlags(true, false, false, false); //setting LIVE flag on
+		byte [] headerBytes = header.getHeaderBytes();
+		//DatagramPacket setupPacket = new DatagramPacket();
 		
 		try {
 			socket = new DatagramSocket();
