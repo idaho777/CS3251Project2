@@ -1,0 +1,4 @@
+
+public enum ClientState {
+	CLOSED, LIVE_SENT, ESTABLISHED, DIE_WAIT_1, DIE_WAIT_2, TIME_WAIT
+}
