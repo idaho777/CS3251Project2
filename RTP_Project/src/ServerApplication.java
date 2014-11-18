@@ -78,6 +78,7 @@ public class ServerApplication {
 				}
 			}else if(cmd.equalsIgnoreCase("terminate")){
 				System.out.println("Terminating...");
+				scan.close();
 				break;
 			}else{
 				System.err.println("Invalid command.");
@@ -85,7 +86,6 @@ public class ServerApplication {
 			}
 
 		}
-
 		System.out.println("Shutdown successful");
 		System.exit(0);
 		
