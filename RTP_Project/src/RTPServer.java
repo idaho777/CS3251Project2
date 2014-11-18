@@ -38,6 +38,10 @@ public class RTPServer {
 		state = ServerState.CLOSED;
 	}
 	
+	public RTPServer(short sourcePort, String ipAddress, short destPort){
+		
+	}
+	
 	public void openSession() throws IOException
 	{
 		DatagramPacket packet = null;
