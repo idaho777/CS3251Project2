@@ -1,8 +1,11 @@
 
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 /**
  * 
@@ -11,40 +14,55 @@ import java.net.UnknownHostException;
  */
 public class RTPServer {
 
-	private short srcPort, destPort;
-	private InetAddress srcIpAddress, destIpAddress;
+	private short serverPort, clientPort;
+	private InetAddress serverIpAddress, clientIpAddress;
+	
 	private int windowSize;
 	private DatagramSocket socket;
+	
+	private ServerState state;
 	
 	public RTPServer()
 	{
 		
 	}
 	
-	public RTPServer(short sourcePort, short destinationPort, String destinationIpAddress)
+	public RTPServer(short sourcePort)
 	{
-		srcPort = sourcePort;
-		destPort = destinationPort;
+		serverPort = sourcePort;
 		try {
-			destIpAddress = InetAddress.getByName(destinationIpAddress);
+			serverIpAddress = InetAddress.getLocalHost();
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		state = ServerState.CLOSED;
 	}
 	
-	public void openSession()
+	public void openSession() throws IOException
 	{
+		DatagramPacket packet = null;
+		DatagramSocket socket = new DatagramSocket(serverPort);
+		byte[] arr = new byte[2000];
 		
+		System.out.println("Server Waiting");
+		packet = new DatagramPacket(arr, arr.length);
+		socket.receive(packet);
+		
+		clientIpAddress = packet.getAddress();
+		clientPort = (short) packet.getPort();
+		
+		RTPPacketHeader header = new RTPPacketHeader(Arrays.copyOfRange(packet.getData(), 0, 20));
+		
+		String receivedMsg = new String(packet.getData());
+		System.out.println(receivedMsg);
+		
+		DatagramPacket sendPacket = new DatagramPacket(arr, windowSize, clientIpAddress, windowSize);
+		
+//		socket.send(p);
 	}
 	
 	public void close()
 	{
 		
-	}
-	
-	public static void main(String[] args)
-	{
-		System.out.println("asdf");
 	}
 }
