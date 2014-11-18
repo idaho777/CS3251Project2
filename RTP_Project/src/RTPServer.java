@@ -24,11 +24,6 @@ public class RTPServer {
 	
 	private ServerState state;
 	
-	public RTPServer()
-	{
-		
-	}
-	
 	public RTPServer(short sourcePort)
 	{
 		serverPort = sourcePort;
@@ -38,6 +33,10 @@ public class RTPServer {
 			e.printStackTrace();
 		}
 		state = ServerState.CLOSED;
+	}
+	
+	public RTPServer(short sourcePort, String ipAddress, short destPort){
+
 	}
 	
 	public void openSession()
