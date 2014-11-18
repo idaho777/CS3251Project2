@@ -14,6 +14,8 @@ import java.util.Arrays;
  */
 public class RTPServer {
 
+	private static final int CHECKSUM = 1000;
+	
 	private short serverPort, clientPort;
 	private InetAddress serverIpAddress, clientIpAddress;
 	
@@ -38,27 +40,58 @@ public class RTPServer {
 		state = ServerState.CLOSED;
 	}
 	
-	public void openSession() throws IOException
+	public void openSession()
 	{
 		DatagramPacket packet = null;
-		DatagramSocket socket = new DatagramSocket(serverPort);
-		byte[] arr = new byte[2000];
+		DatagramSocket socket = null;
+		try {
+			socket = new DatagramSocket(serverPort);
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+		byte[] arr = new byte[1024];
 		
 		System.out.println("Server Waiting");
 		packet = new DatagramPacket(arr, arr.length);
-		socket.receive(packet);
 		
+		try {
+			socket.receive(packet);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		System.out.println("Received Packet");
 		clientIpAddress = packet.getAddress();
 		clientPort = (short) packet.getPort();
 		
 		RTPPacketHeader header = new RTPPacketHeader(Arrays.copyOfRange(packet.getData(), 0, 20));
 		
-		String receivedMsg = new String(packet.getData());
-		System.out.println(receivedMsg);
+		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
+		liveAckHeader.setSource(header.getDestination());
+		liveAckHeader.setDestination(header.getSource());
+		liveAckHeader.setSeqNum(0);
+		liveAckHeader.setAckNum(0);
+		liveAckHeader.setFlags(true, false, true, false);
+		liveAckHeader.setChecksum(1000);
 		
-		DatagramPacket sendPacket = new DatagramPacket(arr, windowSize, clientIpAddress, windowSize);
+		byte[] liveAckHeaderBytes = liveAckHeader.getHeaderBytes();
 		
-//		socket.send(p);
+		DatagramPacket sendPacket = new DatagramPacket(liveAckHeaderBytes, liveAckHeaderBytes.length, clientIpAddress, liveAckHeader.getDestination());
+		System.out.println(sendPacket.getSocketAddress());
+		try {
+			socket.send(sendPacket);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+//		try {
+//			Thread.sleep(30000);
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 	}
 	
 	public void close()
