@@ -63,9 +63,9 @@ public class ClientApplication {
 
 		while(true){
 			Scanner scan = new Scanner(System.in);
-			String cmd = scan.nextLine();
+			String cmd = scan.nextLine().toLowerCase();
 			String [] split = cmd.split("\\s+");
-			if(split.length>0 && !split[0].equalsIgnoreCase("disconnect")){
+			if(split.length>0 && !cmd.equals("disconnect")){
 				System.out.println(split[0]);
 				switch(split[0]){
 				case "connect":{ 
@@ -78,6 +78,8 @@ public class ClientApplication {
 						String fileName = split[1];
 						//upload file to server
 						System.out.println("I have uploaded!!!");
+					}else{
+						System.err.println("You need another argument after get");
 					}
 					break;
 				}
@@ -86,6 +88,8 @@ public class ClientApplication {
 						String fileName = split[1];
 						//download file from server
 						System.out.println("I have downloaded!!!");
+					}else{
+						System.err.println("You need another argument after post");
 					}
 					break;
 				}
@@ -97,7 +101,9 @@ public class ClientApplication {
 						}catch(NumberFormatException e){
 							System.err.println("Invalid window size.");
 						}
-						System.out.println("I have connected!!!");
+						System.out.println("I have window!!!");
+					}else{
+						System.err.println("You need another argument after window");
 					}
 					break;
 				}
