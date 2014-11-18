@@ -114,6 +114,7 @@ public class ClientApplication {
 				}
 			}else if(cmd.equalsIgnoreCase("disconnect")){
 				System.out.println("Disconnecting...");
+				scan.close();
 				break;
 			}else{
 				System.err.println("Invalid command.");
