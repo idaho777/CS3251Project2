@@ -1,3 +1,8 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -126,8 +131,37 @@ public class ClientApplication {
 
 		System.out.println("Shutdown successful");
 		System.exit(0);
+	
+	}
+	
+	public byte[] getFile(String path){
+		byte [] data= null;
+		File file = new File(path);
+		try{
+			FileInputStream fin = new FileInputStream(file);
+			data= new byte[(int)file.length()];
+			fin.read(data);
+		}catch(FileNotFoundException e){
+			System.err.println("File not found");
+		}catch (IOException e){
+			System.err.println("File could not be read");
+		}
 		
-
+		return data;
+	}
+	
+	public void dataToTextFile(byte [] data, String path){
+		try {
+			FileOutputStream stream= new FileOutputStream(path);
+			stream.write(data);
+			stream.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 }
