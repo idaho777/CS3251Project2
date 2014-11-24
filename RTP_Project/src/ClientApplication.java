@@ -156,11 +156,10 @@ public class ClientApplication {
 			stream.write(data);
 			stream.close();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
+			System.err.println("File not found");
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("File could not be written");
 		}
 	}
 

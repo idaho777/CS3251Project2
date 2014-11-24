@@ -98,7 +98,6 @@ public class ServerApplication {
 	
 	public byte[] getFile(String path){
 		byte [] data= null;
-		
 		File file = new File(path);
 		try{
 			FileInputStream fin = new FileInputStream(file);
@@ -119,11 +118,10 @@ public class ServerApplication {
 			stream.write(data);
 			stream.close();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
+			System.err.println("File not found");
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.err.println("File could not be written");
 		}
 	}
 }
