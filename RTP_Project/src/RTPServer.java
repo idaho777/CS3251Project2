@@ -4,6 +4,7 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
@@ -20,9 +21,22 @@ public class RTPServer {
 	private InetAddress serverIpAddress, clientIpAddress;
 	
 	private int windowSize;
-	private DatagramSocket socket;
+	private DatagramSocket serverSocket;
+	private DatagramPacket sendPacket, receivePacket;
 	
 	private ServerState state;
+	
+	public RTPServer()
+	{
+		serverPort = 3252;
+		try {
+			serverIpAddress = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		state = ServerState.CLOSED;
+		System.out.println("Server IP: " + serverIpAddress);
+	}
 	
 	public RTPServer(short sourcePort)
 	{
@@ -33,38 +47,78 @@ public class RTPServer {
 			e.printStackTrace();
 		}
 		state = ServerState.CLOSED;
+		System.out.println("Server IP: " + serverIpAddress);
 	}
 	
 	public RTPServer(short sourcePort, String ipAddress, short destPort){
 
 	}
 	
+	
 	public void openSession()
 	{
-		DatagramPacket packet = null;
-		DatagramSocket socket = null;
-		try {
-			socket = new DatagramSocket(serverPort);
-		} catch (SocketException e) {
+		try
+		{
+			serverSocket = new DatagramSocket(serverPort, serverIpAddress);
+			serverSocket.setSoTimeout(1000);
+		}
+		catch (SocketException e)
+		{
 			e.printStackTrace();
 		}
 		byte[] arr = new byte[1024];
+		receivePacket = new DatagramPacket(arr, arr.length);
 		
-		System.out.println("Server Waiting");
-		packet = new DatagramPacket(arr, arr.length);
-		
-		try {
-			socket.receive(packet);
-		} catch (IOException e) {
-			e.printStackTrace();
+		state = ServerState.LISTEN;
+		while (true)
+		{
+			try
+			{
+				serverSocket.receive(packet);
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Check for terminate");
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+			
+			
+			// State is in Listen
+			if (state == ServerState.LISTEN)
+			{
+				
+			}
+			else if (state == ServerState.LIVE_RCVD)
+			{
+				System.out.println("Live_Received State");
+				RTPPacketHeader header = new RTPPacketHeader(Arrays.copyOfRange(packet.getData(), 0, 20));
+
+				// Check if correct packet
+				// Checksum
+				if (header.getDestination() == serverPort)
+				{
+					state = ServerState.ESTABLISHED;
+				}
+			}
+			
+			
+			
+			
 		}
-		
-		System.out.println("Received Packet");
+	}
+	
+	
+	private void listenState()
+	{
+		System.out.println("Listen State, Recieved Packet");
 		clientIpAddress = packet.getAddress();
 		clientPort = (short) packet.getPort();
 		
+		// Live Ack Header
 		RTPPacketHeader header = new RTPPacketHeader(Arrays.copyOfRange(packet.getData(), 0, 20));
-		
 		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
 		liveAckHeader.setSource(header.getDestination());
 		liveAckHeader.setDestination(header.getSource());
@@ -72,29 +126,62 @@ public class RTPServer {
 		liveAckHeader.setAckNum(0);
 		liveAckHeader.setFlags(true, false, true, false);
 		liveAckHeader.setChecksum(1000);
-		
 		byte[] liveAckHeaderBytes = liveAckHeader.getHeaderBytes();
 		
+		//Sending Syn Ack package
 		DatagramPacket sendPacket = new DatagramPacket(liveAckHeaderBytes, liveAckHeaderBytes.length, clientIpAddress, liveAckHeader.getDestination());
-		System.out.println(sendPacket.getSocketAddress());
-		try {
-			socket.send(sendPacket);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		
-		
+		serverSocket.send(sendPacket);
+		state = ServerState.LIVE_RCVD;
+	}
+	
+//	public void openSession1212()
+//	{
+//		// Setup Sockets and Receiving Packet
+//		DatagramPacket packet = null;
+//		DatagramSocket socket = null;
 //		try {
-//			Thread.sleep(30000);
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
+//			socket = new DatagramSocket(serverPort, serverIpAddress);
+//		} catch (SocketException e) {
 //			e.printStackTrace();
 //		}
-	}
+//		
+//		packet = new DatagramPacket(arr, arr.length);
+//
+//		
+//		// Server Listening for Packets
+//		System.out.println("Server Waiting");
+//		state = ServerState.LISTEN;
+//		while (state != ServerState.ESTABLISHED)
+//		{
+//			try
+//			{
+//				socket.receive(packet);
+//			} 
+//			catch (IOException e)
+//			{
+//				e.printStackTrace();
+//			}	
+//			
+//			
+//	
+//		}
+//		System.out.println("Exit openSession()");
+//	}
 	
 	public void close()
 	{
 		
+	}
+	
+	
+	private boolean validatePacketHeader(RTPPacketHeader header)
+	{
+		//checksum
+		
+		//port
+		//
+		
+		return false;
 	}
 }
