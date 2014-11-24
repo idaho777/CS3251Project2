@@ -16,7 +16,8 @@ import java.util.Arrays;
  */
 public class RTPClient {
 	
-	private static final int CHECKSUM = 1000;
+	private static final int CHECKSUM = 13566144;
+	private static final int PRECHECKSUM = 3251;
 	
 	private ClientState state;
 	
@@ -27,7 +28,7 @@ public class RTPClient {
 	private int timeout = 10000;	// milliseconds
 		
 	private byte[] window = new byte[0xFFFF];
-	private int sequenceNum;
+	private int seqNum, ackNum;
 	private int windowSize;
 	
 	public RTPClient() {
@@ -62,6 +63,16 @@ public class RTPClient {
 	 */
 	public void setup()
 	{
+		// setup socket
+		try {
+			clientSocket = new DatagramSocket(clientPort, clientIpAddress);
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+
+		byte[] receiveMessage = new byte[1024];
+		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
+		
 		// Setup Initializing Header
 		RTPPacketHeader liveHeader = new RTPPacketHeader();
 		liveHeader.setSource(clientPort);
@@ -69,115 +80,154 @@ public class RTPClient {
 		liveHeader.setSeqNum(0);
 		liveHeader.setAckNum(0);
 		liveHeader.setFlags(true, false, false, false); //setting LIVE flag on
-		liveHeader.setChecksum(CHECKSUM);
+		liveHeader.setChecksum(PRECHECKSUM);
 		byte [] headerBytes = liveHeader.getHeaderBytes();
 		
-		// setup socket
-		try {
-			clientSocket = new DatagramSocket(clientPort, clientIpAddress);
-		} catch (SocketException e) {
-			e.printStackTrace();
-		}
-		
-		// LIVE Packet
-		DatagramPacket setupPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, liveHeader.getDestination());
-		byte[] receiveMessage = new byte[1024];
-		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
+		DatagramPacket setupPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
 		
 		// Sending LIVE packet and receiving ACK
 		
-		int retries = 0;
 		try {
 			clientSocket.setSoTimeout(timeout);
-			clientSocket.send(setupPacket);
 		} catch (SocketException e1) {
 			e1.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	
 
+
+		int tries = 0;
 		state = ClientState.LIVE_SENT;
-		while (retries < 4 && state != ClientState.ESTABLISHED)
+		while (tries < 5 && state != ClientState.SERVER_ACK_SENT)
 		{
+			try
+			{
+				clientSocket.send(setupPacket);
+				clientSocket.receive(receivePacket);
 
-			if (state == ClientState.LIVE_SENT)
-			{
-				try
-				{
-					clientSocket.receive(receivePacket);	
-					if (receivePacket.getAddress().equals(serverIpAddress))
-					{
-						System.out.println("SameSocketAdd");
-						RTPPacketHeader receiveHeader = new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
-						if (receiveHeader.getChecksum() == CHECKSUM && receiveHeader.isLive() && receiveHeader.isAck())
-						{
-							state = ClientState.SERVER_ACK_SENT;
-							
-							RTPPacketHeader ackHeader = new RTPPacketHeader();
-					        ackHeader.setSource(clientPort);
-					        ackHeader.setDestination(serverPort);
-					        ackHeader.setSeqNum(0);
-					        ackHeader.setAckNum(0);
-					        ackHeader.setFlags(true, false, false, true); // LIVE and LAST
-					        ackHeader.setChecksum(CHECKSUM);
-							byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
-							
-							DatagramPacket ackPacket = new DatagramPacket(ackHeaderBytes, ackHeaderBytes.length, serverIpAddress, ackHeader.getDestination());
-							
-							clientSocket.send(ackPacket);
-						}
-						retries++;
-					}
+				if (!receivePacket.getAddress().equals(serverIpAddress)){
+					continue;
 				}
-				catch (SocketTimeoutException e0)
-				{
-					retries++;
-					System.out.println("retry #" + retries);
-					try
-					{
-						clientSocket.send(setupPacket);
-					}
-					catch (IOException e)
-					{
-						e.printStackTrace();
-					}
-				}
-				catch (IOException e1) 
-				{
-					e1.printStackTrace();
-				}
+
+				setupPacket = liveSentState(receivePacket);
 			}
-			else if (state == ClientState.SERVER_ACK_SENT)
+			catch (SocketTimeoutException s)
 			{
-				try
-				{
-					clientSocket.receive(receivePacket);
-					if (receivePacket.getAddress().equals(serverIpAddress))
-					{
-						System.out.println("Same Address, Server Ack Sent");
-						RTPPacketHeader receiveHeader = new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
-						if (receiveHeader.getChecksum() == CHECKSUM && receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
-						{
-							state = ClientState.ESTABLISHED;
-						}
-					}
-				}
-				catch (IOException e)
-				{
-					e.printStackTrace();
-				}
+				System.out.println("Timeout, resend");
+				tries++;
+			}
+			catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
-		
 		if (state != ClientState.SERVER_ACK_SENT)
 		{
 			System.out.println("Unsuccessful Connection");
 			return;
 		}
+		
+		
+		tries = 0;
+		while (tries < 5 && state != ClientState.ESTABLISHED)
+		{
+			try
+			{
+				clientSocket.send(setupPacket);
+				clientSocket.receive(receivePacket);
+				
+				if (!receivePacket.getAddress().equals(serverIpAddress)){
+					continue;
+				}
 
+				serverAckSentState(receivePacket);
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Timeout, resend");
+				tries++;
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		
+		if (state != ClientState.ESTABLISHED)
+		{
+			System.out.println("Unsuccessful Connection");
+			return;
+		}
+			
 		System.out.println("exit setup()");
 	}
+	
+	private DatagramPacket liveSentState(DatagramPacket receivePacket) throws IOException
+	{
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+
+		RTPPacketHeader ackHeader = new RTPPacketHeader();
+		ackHeader.setSource(clientPort);
+		ackHeader.setDestination(serverPort);
+		ackHeader.setChecksum(PRECHECKSUM);
+		if (isValidPacketHeader(receiveHeader) && receiveHeader.isLive() && receiveHeader.isAck())
+		{
+			ackHeader.setSeqNum(seqNum);
+	        ackHeader.setAckNum(0);
+	        ackHeader.setFlags(true, false, false, true);
+	        
+			state = ClientState.SERVER_ACK_SENT;
+		}
+		else
+		{
+			ackHeader.setSeqNum(0);
+	        ackHeader.setAckNum(0);
+	        ackHeader.setFlags(true, false, false, false);
+		}
+		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
+		
+		DatagramPacket ackPacket = new DatagramPacket(ackHeaderBytes, ackHeaderBytes.length, serverIpAddress, serverPort);	
+		clientSocket.send(ackPacket);
+		return ackPacket;
+	}
+	
+	
+	private void serverAckSentState(DatagramPacket receivePacket) throws IOException
+	{	
+		// Wring server IP address
+		if (!receivePacket.getAddress().equals(serverIpAddress)){
+			return;
+		}
+
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+
+		RTPPacketHeader ackHeader = new RTPPacketHeader();
+		ackHeader.setSource(clientPort);
+		ackHeader.setDestination(serverPort);
+		ackHeader.setChecksum(PRECHECKSUM);
+		if (isValidPacketHeader(receiveHeader) && receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
+		{
+			ackNum = receiveHeader.getSeqNum();
+			seqNum++;
+			state = ClientState.ESTABLISHED;
+			return;
+		}
+		else
+		{
+			ackHeader.setSeqNum(seqNum);
+	        ackHeader.setAckNum(0);
+	        ackHeader.setFlags(true, false, false, true);
+		}
+		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
+		
+		DatagramPacket ackPacket = new DatagramPacket(ackHeaderBytes, ackHeaderBytes.length, serverIpAddress, serverPort);	
+		clientSocket.send(ackPacket);
+	}
+	
+	
+	
+	
+	
+	
 	
 	/**
 	 * Starts sending data transfer
@@ -200,4 +250,16 @@ public class RTPClient {
 		
 	}
 	
+	
+	private boolean isValidPacketHeader(RTPPacketHeader header)
+	{
+		int headerChecksumed = CheckSum.getChecksum(header.getChecksum());
+		
+		return headerChecksumed == CHECKSUM;
+	}
+	
+	private RTPPacketHeader getHeader(DatagramPacket receivePacket)
+	{
+		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
+	}
 }
