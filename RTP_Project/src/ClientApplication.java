@@ -74,13 +74,14 @@ public class ClientApplication {
 				System.out.println(split[0]);
 				switch(split[0]){
 				case "connect":{ 
-					//do connect
+					client.setup();
 					System.out.println("I have connected!!!");
 					break;
 				}
 				case "get":{
 					if(split.length>1){
 						String fileName = split[1];
+						byte [] fileData = getFile(fileName);
 						//upload file to server
 						System.out.println("I have uploaded!!!");
 					}else{
@@ -134,7 +135,7 @@ public class ClientApplication {
 	
 	}
 	
-	public byte[] getFile(String path){
+	public static byte[] getFile(String path){
 		byte [] data= null;
 		File file = new File(path);
 		try{
@@ -150,7 +151,7 @@ public class ClientApplication {
 		return data;
 	}
 	
-	public void dataToTextFile(byte [] data, String path){
+	public static void dataToTextFile(byte [] data, String path){
 		try {
 			FileOutputStream stream= new FileOutputStream(path);
 			stream.write(data);

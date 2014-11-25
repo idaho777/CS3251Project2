@@ -46,6 +46,7 @@ public class ServerApplication {
 
 					System.out.println("Initializing RTP Server...");
 					server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
+					server.openSession();
 
 					System.out.println("Initialization Complete");		
 				}catch(NumberFormatException e){
@@ -61,7 +62,7 @@ public class ServerApplication {
 				System.exit(1);
 			}
 		}else{
-			System.err.println("fta-server must be run as first command in the format of fta-client X A P");
+			System.err.println("fta-server must be run as first command in the format of fta-server X A P");
 			System.exit(1);
 		}
 

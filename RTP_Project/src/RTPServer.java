@@ -17,17 +17,17 @@ public class RTPServer {
 
 	private static final int CHECKSUM = 13566144;
 	private static final int PRECHECKSUM = 3251;
-	
+
 	private short serverPort, clientPort;
 	private InetAddress serverIpAddress, clientIpAddress;
-	
+
 	private int windowSize;
 	private DatagramSocket serverSocket;
 	private DatagramPacket sendPacket, receivePacket;
-	
+
 	private ServerState state;
 	private int seqNum, ackNum;
-	
+
 	public RTPServer()
 	{
 		serverPort = 3252;
@@ -39,7 +39,7 @@ public class RTPServer {
 		state = ServerState.CLOSED;
 		System.out.println("Server IP: " + serverIpAddress);
 	}
-	
+
 	public RTPServer(short sourcePort)
 	{
 		serverPort = sourcePort;
@@ -51,12 +51,12 @@ public class RTPServer {
 		state = ServerState.CLOSED;
 		System.out.println("Server IP: " + serverIpAddress);
 	}
-	
+
 	public RTPServer(short sourcePort, String ipAddress, short destPort){
 
 	}
-	
-	
+
+
 	public void openSession()
 	{
 		try
@@ -70,14 +70,14 @@ public class RTPServer {
 		}
 		byte[] arr = new byte[1024];
 		receivePacket = new DatagramPacket(arr, arr.length);
-		
+
 		state = ServerState.LISTEN;
 		while (state != ServerState.ESTABLISHED)
 		{
 			try
 			{
 				serverSocket.receive(receivePacket);
-				
+
 				if (state == ServerState.LISTEN)
 				{
 					System.out.println(state);
@@ -99,15 +99,15 @@ public class RTPServer {
 			}
 		}
 	}
-	
-	
+
+
 	private void listenState(DatagramPacket receivePacket) throws IOException
 	{
-		
+
 		// Receive Packet
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
 		clientIpAddress = receivePacket.getAddress();
-		
+
 		// Live Ack Header
 		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
 		liveAckHeader.setSource(receiveHeader.getDestination());
@@ -131,25 +131,25 @@ public class RTPServer {
 		}
 
 		byte[] liveAckHeaderBytes = liveAckHeader.getHeaderBytes();
-		
+
 		DatagramPacket sendPacket = new DatagramPacket(liveAckHeaderBytes, liveAckHeaderBytes.length, clientIpAddress, clientPort);
 		serverSocket.send(sendPacket);
 	}
-	
-	
+
+
 	public void liveReceivedState(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
 		clientIpAddress = receivePacket.getAddress();
-		
+
 		int receiveSeqNum = receiveHeader.getSeqNum();
-		
+
 		// Live Ack Header
 		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
 		liveAckHeader.setSource(receiveHeader.getDestination());
 		liveAckHeader.setDestination(receiveHeader.getSource());
 		liveAckHeader.setChecksum(PRECHECKSUM);
-		
+
 		// Checksummed and LIVE and LAST
 		if (isValidPacketHeader(receiveHeader) && receiveHeader.isLive() && receiveHeader.isLast())
 		{
@@ -157,7 +157,7 @@ public class RTPServer {
 			liveAckHeader.setSeqNum(seqNum);
 			liveAckHeader.setAckNum(ackNum + 1);
 			liveAckHeader.setFlags(true, false, true, true);	// live, !die, ack, last
-			
+
 			state = ServerState.ESTABLISHED;
 		}
 		else	// Resend
@@ -168,31 +168,134 @@ public class RTPServer {
 		}
 
 		byte[] liveAckHeaderBytes = liveAckHeader.getHeaderBytes();
-		
+
 		DatagramPacket sendPacket = new DatagramPacket(liveAckHeaderBytes, liveAckHeaderBytes.length, clientIpAddress, liveAckHeader.getDestination());
 		serverSocket.send(sendPacket);
 	}
 
-	
+
+	/**
+	 * A method to close the server connection, 4-way handshake
+	 */
 	public void close()
-	{
-		
+	{		
+		state = ServerState.CLOSE_WAIT1;
+		byte[] arr = new byte[1024];
+		receivePacket = new DatagramPacket(arr, arr.length);
+
+		while (state != ServerState.CLOSE_WAIT2)
+		{
+			try
+			{
+				serverSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				if (isValidPacketHeader(receiveHeader) && receiveHeader.isDie()){
+					sendAckCloseState(receivePacket);
+				}
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Check for terminate");
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+		}
+
+		//ACK has been sent, now to send a DIE
+		while (state != ServerState.CLOSED)
+		{
+			try
+			{
+				sendDieCloseState();
+				serverSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+
+				if(receiveHeader.isAck() && receiveHeader.isLast() && receiveHeader.isDie()){
+					state = ServerState.CLOSED;
+					serverSocket.close();
+					System.out.println("Server has been shut down successfully");
+				}
+
+				//send FIN from server to client
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Check for terminate");
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+		}
+
 	}
-	
-	
+
+	private void sendAckCloseState(DatagramPacket receivePacket) throws IOException
+	{
+
+		// Receive Packet
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		clientIpAddress = receivePacket.getAddress();
+
+		// DIE Ack Header
+		RTPPacketHeader dieAckHeader = new RTPPacketHeader();
+		dieAckHeader.setSource(receiveHeader.getDestination());
+		dieAckHeader.setDestination(receiveHeader.getSource());
+		dieAckHeader.setChecksum(PRECHECKSUM);
+
+		// Checksummed and DIE
+		ackNum = receiveHeader.getSeqNum();
+		seqNum++;
+		dieAckHeader.setFlags(false, true, true, true); //ack, last flags on
+		state = ServerState.CLOSE_WAIT2;
+
+		/*else	// Resend, confused about this part ??????
+		{
+			dieAckHeader.setSeqNum(seqNum);
+			dieAckHeader.setAckNum(0);
+			dieAckHeader.setFlags(false, true, false, false);	// live, !die, !ack, !last
+		}*/
+
+		byte[] dieAckHeaderBytes = dieAckHeader.getHeaderBytes();
+
+		DatagramPacket sendPacket = new DatagramPacket(dieAckHeaderBytes, dieAckHeaderBytes.length, clientIpAddress, clientPort);
+
+		serverSocket.send(sendPacket);
+
+	}
+
+	private void sendDieCloseState() throws IOException{
+		// Setup header for the DIE packet
+		RTPPacketHeader dieHeader = new RTPPacketHeader();
+		dieHeader.setSource(clientPort);
+		dieHeader.setDestination(serverPort);
+		dieHeader.setSeqNum(0); //should have last seq num 
+		dieHeader.setAckNum(0); //?????? What should these be after the ACK
+		dieHeader.setFlags(false, true, false, true); //setting DIE flag on
+		dieHeader.setChecksum(PRECHECKSUM);
+		byte [] headerBytes = dieHeader.getHeaderBytes();
+
+		DatagramPacket diePacket = new DatagramPacket(headerBytes, headerBytes.length, clientIpAddress, clientPort);
+		state = ServerState.LAST_ACK;
+
+		serverSocket.send(diePacket);
+	}
+
 	private boolean isValidPacketHeader(RTPPacketHeader header)
 	{
 		int headerChecksumed = CheckSum.getChecksum(header.getChecksum());
-		
+
 		return headerChecksumed == CHECKSUM;
 	}
-	
+
 	private RTPPacketHeader getHeader(DatagramPacket receivePacket)
 	{
 		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
 	}
-	
-/*
+
+	/*
 	public void openSession1212()
 	{
 		// Setup Sockets and Receiving Packet
@@ -203,10 +306,10 @@ public class RTPServer {
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
-		
+
 		packet = new DatagramPacket(arr, arr.length);
 
-		
+
 		// Server Listening for Packets
 		System.out.println("Server Waiting");
 		state = ServerState.LISTEN;
@@ -220,11 +323,11 @@ public class RTPServer {
 			{
 				e.printStackTrace();
 			}	
-			
-			
-	
+
+
+
 		}
 		System.out.println("Exit openSession()");
 	}
-*/
+	 */
 }
