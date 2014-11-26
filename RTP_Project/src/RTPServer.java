@@ -1,11 +1,12 @@
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -15,8 +16,11 @@ import java.util.Arrays;
  */
 public class RTPServer {
 
-	private static final int CHECKSUM = 13566144;
-	private static final int PRECHECKSUM = 3251;
+	private static final int CHECKSUM 		= 13566144;
+	private static final int PRECHECKSUM 	= 3251;
+	private static final int PACKET_SIZE	= 1024;
+	private static final int DATA_SIZE		= 1004;
+	private static final int HEADER_SIZE 	= 20;
 
 	private short serverPort, clientPort;
 	private InetAddress serverIpAddress, clientIpAddress;
@@ -28,6 +32,7 @@ public class RTPServer {
 	private ServerState state;
 	private int seqNum, ackNum;
 	private String pathName="";
+	private ArrayList<byte[]> bytesReceived;
 
 	public RTPServer()
 	{
@@ -104,7 +109,12 @@ public class RTPServer {
 				
 				
 				// ==== Packet is valid
-				if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				if (!receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck())
+				{
+					System.out.println("I have received a data packet");
+					receiveDataPacket(receivePacket);
+				}
+				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
 					handShakeOne(receivePacket);
 					System.out.println("Exit");
@@ -165,8 +175,6 @@ public class RTPServer {
 
 	public void handShakeTwo(DatagramPacket receivePacket) throws IOException
 	{
-		RTPPacketHeader receiveHeader = getHeader(receivePacket);
-		
 //		int receiveSeqNum = receiveHeader.getSeqNum();
 
 		// Live Ack Header
@@ -197,7 +205,53 @@ public class RTPServer {
 		serverSocket.send(sendPacket);
 	}
 
+	
+	private void receiveDataPacket(DatagramPacket receivePacket) throws IOException
+	{
+		System.out.println("I am receiving the data.... wheeeee");
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		
+		// extracts and adds data to ArrayList of byte[]s
+		byte[] data = extractData(receivePacket);
+		bytesReceived.add(data);
+		
+		RTPPacketHeader dataAckHeader = new RTPPacketHeader();
+		dataAckHeader.setSource(serverPort);
+		dataAckHeader.setDestination(clientPort);
+		dataAckHeader.setChecksum(PRECHECKSUM);
+		dataAckHeader.setSeqNum(0);
+		dataAckHeader.setAckNum(0);
+		dataAckHeader.setFlags(false, false, true, false);
+		
+		if (receiveHeader.isLast())
+		{
+			dataAckHeader.setFlags(false, false, true, false);
+		}
+		
+		byte[] liveAckHeaderBytes = dataAckHeader.getHeaderBytes();
 
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					liveAckHeaderBytes,
+					liveAckHeaderBytes.length,
+					clientIpAddress,
+					clientPort
+				);
+		serverSocket.send(sendPacket);
+	}
+
+	private byte[] extractData(DatagramPacket receivePacket)
+	{
+		//Check if packet is last
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		int data_length = receiveHeader.getWindow();
+		
+		byte[] extractedData = new byte[data_length];
+		byte[] packet = receivePacket.getData();
+		System.arraycopy(packet, HEADER_SIZE, extractedData, 0, data_length);
+		
+		return extractedData;
+	}
 	/**
 	 * A method to close the server connection, 4-way handshake
 	 */
@@ -321,41 +375,6 @@ public class RTPServer {
 		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
 	}
 
-	/*
-	public void openSession1212()
-	{
-		// Setup Sockets and Receiving Packet
-		DatagramPacket packet = null;
-		DatagramSocket socket = null;
-		try {
-			socket = new DatagramSocket(serverPort, serverIpAddress);
-		} catch (SocketException e) {
-			e.printStackTrace();
-		}
-
-		packet = new DatagramPacket(arr, arr.length);
-
-
-		// Server Listening for Packets
-		System.out.println("Server Waiting");
-		state = ServerState.LISTEN;
-		while (state != ServerState.ESTABLISHED)
-		{
-			try
-			{
-				socket.receive(packet);
-			} 
-			catch (IOException e)
-			{
-				e.printStackTrace();
-			}	
-
-
-
-		}
-		System.out.println("Exit openSession()");
-	}
-	 */
 	
 	public ServerState getServerState(){
 		return state;

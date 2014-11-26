@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -16,8 +17,11 @@ import java.util.TimerTask;
  */
 public class RTPClient {
 
-	private static final int CHECKSUM = 13566144;
-	private static final int PRECHECKSUM = 3251;
+	private static final int CHECKSUM 		= 13566144;
+	private static final int PRECHECKSUM 	= 3251;
+	private static final int PACKET_SIZE	= 1024;
+	private static final int DATA_SIZE		= 1004;
+	private static final int HEADER_SIZE 	= 20;
 
 	private ClientState state;
 
@@ -28,7 +32,7 @@ public class RTPClient {
 	private int timeout = 10000;	// milliseconds
 
 	private byte[] window = new byte[0xFFFF];
-	private int seqNum, ackNum, windowSize, bytesRemaining, packetSize;
+	private int seqNum, ackNum, windowSize, bytesRemaining;
 	private String pathName="";
 	private byte [] fileData;
 	private boolean timedTaskRun= false;
@@ -136,6 +140,7 @@ public class RTPClient {
 			catch (IOException e) {
 				e.printStackTrace();
 			}
+			
 		}
 
 
@@ -194,11 +199,11 @@ public class RTPClient {
 		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
 		DatagramPacket ackPacket = new DatagramPacket
 				(
-						ackHeaderBytes,
-						ackHeaderBytes.length,
-						serverIpAddress,
-						serverPort
-						);	
+					ackHeaderBytes,
+					ackHeaderBytes.length,
+					serverIpAddress,
+					serverPort
+				);	
 		return ackPacket;
 	}
 
@@ -210,41 +215,78 @@ public class RTPClient {
 		state = ClientState.ESTABLISHED;
 	}
 
-	private DatagramPacket createPacket(){
+	public DatagramPacket createPacket(int startByteIndex){
 		// Setup header for the data packet
+		int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
+		int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
 		RTPPacketHeader header = new RTPPacketHeader();
 		header.setSource(clientPort);
 		header.setDestination(serverPort);
 		header.setSeqNum(seqNum++); //should have last seq num
 		header.setAckNum(seqNum); //???
-		header.setFlags(false, false, false, false); //setting DIE flag on
+		header.setWindow(data_length);
+		header.setFlags(false, false, false, false); 
 		header.setChecksum(PRECHECKSUM);
+		
+		header.setWindow(data_length);
+		if (bytesRemaining <= DATA_SIZE) {
+			header.setFlags(false, false, false, true);
+		}
+		
 		byte [] headerBytes = header.getHeaderBytes();
-
-		byte [] data = new byte [packetSize + headerBytes.length];
-		int start = fileData.length-bytesRemaining;
-		data = Arrays.copyOfRange(fileData, start, start + packetSize);
-
-
-
-		byte [] combo = new byte [packetSize + headerBytes.length];
-
+		byte [] data = new byte [DATA_SIZE];
+		byte [] packetBytes = new byte [PACKET_SIZE];
+		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
+		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
+		System.arraycopy(headerBytes, 0, packetBytes, 0, headerBytes.length);
+		System.arraycopy(data, 0, packetBytes, headerBytes.length, DATA_SIZE);
 		DatagramPacket dataPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
-
 		return dataPacket;
 	}
 
 
-
-
-
+	
 	/**
 	 * Starts sending data transfer
 	 */
-	public void startUpload(byte [] fileData){
-		this.fileData=fileData;
-		bytesRemaining=fileData.length;
-
+	public void startUpload(byte [] file){
+		fileData = file;
+		bytesRemaining = fileData.length;
+		int packetNumber = (fileData.length / DATA_SIZE) + ((fileData.length % DATA_SIZE > 0) ? 1 : 0);
+		int currPacket = 0;
+		DatagramPacket sendingPacket;
+		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
+		
+		while (currPacket < packetNumber)
+		{
+			sendingPacket = createPacket(currPacket);
+			try {
+				clientSocket.send(sendingPacket);
+				clientSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				
+				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				{
+					continue;
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
+				{
+					sendingPacket = createPacket(++currPacket);
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
+				{
+					sendingPacket = createPacket(++currPacket);
+					System.out.println("I have received the last ack!");
+				}
+			} catch (SocketTimeoutException s) {
+				System.out.println("Timeout, resend");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		}
 	}
 
 	/**

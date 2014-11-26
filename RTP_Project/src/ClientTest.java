@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,12 +13,14 @@ public class ClientTest
 	{
 		System.out.println("===Initialize client");
 		RTPClient client = new RTPClient();
-		System.out.println("===Setup Client");
+//		System.out.println("===Setup Client");
 		client.setup();
 //		client.teardown();
 		
-//		byte [] data = getFileBytes("C:\\Users\\Eileen\\Refreshed19.docx");
-//		getFileFromBytes("C:\\Users\\Eileen\\Test\\Refreshed19.docx", data);
+		byte [] data = getFileBytes("C:\\Users\\Eileen\\DHCPMsgExplanation.txt");
+		getFileFromBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt", data);
+		
+		//DatagramPacket packet = client.createPacket(0, data);
 		
 	}
 	
