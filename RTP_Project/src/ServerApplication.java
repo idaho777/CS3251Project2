@@ -3,6 +3,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -45,7 +48,8 @@ public class ServerApplication {
 					netEmuPort = Short.parseShort(args[3]);
 
 					System.out.println("Initializing RTP Server...");
-					server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
+					//server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
+					server = new RTPServer();
 					server.openSession();
 
 					System.out.println("Initialization Complete");		
@@ -76,6 +80,7 @@ public class ServerApplication {
 				if(split.length>1 && split[0].equalsIgnoreCase("window")){
 					try{
 						int windowSize = Integer.parseInt(split[1]);
+						server.setWindowSize(windowSize);
 						System.out.println("I am windowing " + windowSize);
 					}catch(NumberFormatException e){
 						//
@@ -94,10 +99,40 @@ public class ServerApplication {
 		}
 		System.out.println("Shutdown successful");
 		System.exit(0);
-		
+
 	}
-	
-	public byte[] getFile(String path){
+	public static byte [] getFileBytes(String pathName){
+		Path path = Paths.get(pathName);
+		byte[] data=null;
+		try {
+			data = Files.readAllBytes(path);
+		} catch (IOException e) {
+			System.err.println("File could not be read");
+			e.printStackTrace();
+		}
+		return data;
+	}
+
+	public static File getFileFromBytes(String pathname, byte [] data){
+		File file = new File(pathname);
+		try (FileOutputStream fop = new FileOutputStream(file)) {
+
+			// if file doesn't exists, then create it
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			fop.write(data);
+			fop.flush();
+			fop.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return file;
+	}
+
+	/*public byte[] getFile(String path){
 		byte [] data= null;
 		File file = new File(path);
 		try{
@@ -109,10 +144,10 @@ public class ServerApplication {
 		}catch (IOException e){
 			System.err.println("File could not be read");
 		}
-		
+
 		return data;
 	}
-	
+
 	public void dataToTextFile(byte [] data, String path){
 		try {
 			FileOutputStream stream= new FileOutputStream(path);
@@ -124,5 +159,5 @@ public class ServerApplication {
 		} catch (IOException e) {
 			System.err.println("File could not be written");
 		}
-	}
+	}*/
 }

@@ -3,6 +3,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,8 +49,8 @@ public class ClientApplication {
 					netEmuPort = Short.parseShort(args[3]);
 
 					System.out.println("Initializing RTPClient...");
-					client = new RTPClient(clientPort, netEmuIpAddress, netEmuPort);
-
+					//client = new RTPClient(clientPort, netEmuIpAddress, netEmuPort);
+					client = new RTPClient();
 					System.out.println("Initialization Complete");		
 				}catch(NumberFormatException e){
 					System.err.println("The port argument must be a valid port number.");
@@ -80,8 +83,8 @@ public class ClientApplication {
 				}
 				case "get":{
 					if(split.length>1){
-						String fileName = split[1];
-						byte [] fileData = getFile(fileName);
+						String pathName = split[1];
+						byte [] fileData = getFileBytes(pathName);
 						//upload file to server
 						System.out.println("I have uploaded!!!");
 					}else{
@@ -103,6 +106,7 @@ public class ClientApplication {
 					if(split.length>1){
 						try{
 							int size = Integer.parseInt(split[1]);
+							client.setWindowSize(size);
 							//change client's max window size
 						}catch(NumberFormatException e){
 							System.err.println("Invalid window size.");
@@ -120,7 +124,10 @@ public class ClientApplication {
 				}
 			}else if(cmd.equalsIgnoreCase("disconnect")){
 				System.out.println("Disconnecting...");
+				client.teardown();
 				scan.close();
+				while(client.getClientState()!=ClientState.CLOSED){
+				}
 				break;
 			}else{
 				System.err.println("Invalid command.");
@@ -130,12 +137,43 @@ public class ClientApplication {
 
 		}
 
-		System.out.println("Shutdown successful");
+		//System.out.println("Shutdown successful");
 		System.exit(0);
 	
 	}
 	
-	public static byte[] getFile(String path){
+	public static byte [] getFileBytes(String pathName){
+		Path path = Paths.get(pathName);
+		byte[] data=null;
+		try {
+			data = Files.readAllBytes(path);
+		} catch (IOException e) {
+			System.err.println("File could not be read");
+			e.printStackTrace();
+		}
+		return data;
+	}
+	
+	public static File getFileFromBytes(String pathname, byte [] data){
+		File file = new File(pathname);
+		try (FileOutputStream fop = new FileOutputStream(file)) {
+			 
+			// if file doesn't exists, then create it
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+ 
+			fop.write(data);
+			fop.flush();
+			fop.close();
+ 
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return file;
+	}
+	
+	/*public static byte[] getTextFile(String path){
 		byte [] data= null;
 		File file = new File(path);
 		try{
@@ -162,6 +200,6 @@ public class ClientApplication {
 		} catch (IOException e) {
 			System.err.println("File could not be written");
 		}
-	}
+	}*/
 
 }

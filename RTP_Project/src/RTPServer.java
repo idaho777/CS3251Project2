@@ -27,6 +27,7 @@ public class RTPServer {
 
 	private ServerState state;
 	private int seqNum, ackNum;
+	private String pathName="";
 
 	public RTPServer()
 	{
@@ -98,6 +99,8 @@ public class RTPServer {
 				e.printStackTrace();
 			}
 		}
+		
+		close();
 	}
 
 
@@ -191,11 +194,12 @@ public class RTPServer {
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 				if (isValidPacketHeader(receiveHeader) && receiveHeader.isDie()){
 					sendAckCloseState(receivePacket);
+					System.out.println("Client DIE has been received");
 				}
 			}
 			catch (SocketTimeoutException s)
 			{
-				System.out.println("Check for terminate");
+				System.out.println("Have not received DIE from Client for termination");
 			}
 			catch (IOException e)
 			{
@@ -203,16 +207,19 @@ public class RTPServer {
 			}
 		}
 
+		//receivePacket = new DatagramPacket(arr, arr.length);
 		//ACK has been sent, now to send a DIE
 		while (state != ServerState.CLOSED)
 		{
 			try
 			{
 				sendDieCloseState();
+				
 				serverSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
-				if(receiveHeader.isAck() && receiveHeader.isLast() && receiveHeader.isDie()){
+				if(isValidPacketHeader(receiveHeader) && receiveHeader.isAck() && receiveHeader.isLast() && receiveHeader.isDie()){
+					System.out.println("Client ACK has been received.");
 					state = ServerState.CLOSED;
 					serverSocket.close();
 					System.out.println("Server has been shut down successfully");
@@ -222,7 +229,7 @@ public class RTPServer {
 			}
 			catch (SocketTimeoutException s)
 			{
-				System.out.println("Check for terminate");
+				System.out.println("Have not received last ACK from Client for termination");
 			}
 			catch (IOException e)
 			{
@@ -248,7 +255,7 @@ public class RTPServer {
 		// Checksummed and DIE
 		ackNum = receiveHeader.getSeqNum();
 		seqNum++;
-		dieAckHeader.setFlags(false, true, true, true); //ack, last flags on
+		dieAckHeader.setFlags(false, true, true, false); //ack, die flags on
 		state = ServerState.CLOSE_WAIT2;
 
 		/*else	// Resend, confused about this part ??????
@@ -281,6 +288,7 @@ public class RTPServer {
 		state = ServerState.LAST_ACK;
 
 		serverSocket.send(diePacket);
+		System.out.println("Server DIE has been sent");
 	}
 
 	private boolean isValidPacketHeader(RTPPacketHeader header)
@@ -330,4 +338,16 @@ public class RTPServer {
 		System.out.println("Exit openSession()");
 	}
 	 */
+	
+	public ServerState getServerState(){
+		return state;
+	}
+	
+	public int getWindowSize(){
+		return windowSize;
+	}
+	
+	public void setWindowSize(int window){
+		this.windowSize=window;
+	}
 }
