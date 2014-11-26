@@ -21,6 +21,7 @@ public class ClientTest
 		
 	}
 	
+	
 	public static byte [] getFileBytes(String pathName){
 		Path path = Paths.get(pathName);
 		byte[] data=null;

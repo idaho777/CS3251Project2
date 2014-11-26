@@ -31,6 +31,7 @@ public class RTPClient {
 	private int seqNum, ackNum, windowSize, bytesRemaining, packetSize;
 	private String pathName="";
 	private byte [] fileData;
+	private boolean timedTaskRun= false;
 
 	public RTPClient() {
 		this.clientPort=3251;
@@ -107,16 +108,20 @@ public class RTPClient {
 				clientSocket.receive(receivePacket);
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				
 				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
 
 				// Assuming valid and Acknowledged
-				if (receiveHeader.isLive() && receiveHeader.isAck())
+				if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					handShakeLiveAck(receivePacket);
+					setupPacket = handShakeLiveAck(receivePacket);
+				}
+				
+				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
+				{
+					handShakeLiveLast(receivePacket);
 				}
 			}
 			catch (SocketTimeoutException s)
@@ -132,9 +137,9 @@ public class RTPClient {
 				e.printStackTrace();
 			}
 		}
-		
-		
-		
+
+
+
 		// Second Handshake
 		tries = 0;
 		while (state != ClientState.ESTABLISHED)
@@ -145,7 +150,7 @@ public class RTPClient {
 				clientSocket.receive(receivePacket);
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				
+
 				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
 				{
 					continue;
@@ -173,35 +178,35 @@ public class RTPClient {
 		System.out.println("exit setup()");
 	}
 
-	private void handShakeLiveAck(DatagramPacket receivePacket) throws IOException
+	private DatagramPacket handShakeLiveAck(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader ackHeader = new RTPPacketHeader();
 		ackHeader.setSource(clientPort);
 		ackHeader.setDestination(serverPort);
 		ackHeader.setChecksum(PRECHECKSUM);
-//		ackHeader.setSeqNum(seqNum);
+		//		ackHeader.setSeqNum(seqNum);
 		ackHeader.setSeqNum(0);
 		ackHeader.setAckNum(0);
 		ackHeader.setFlags(true, false, false, true); // Live and last
 
 		state = ClientState.SERVER_ACK_SENT;
-		
+
 		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
 		DatagramPacket ackPacket = new DatagramPacket
 				(
-					ackHeaderBytes,
-					ackHeaderBytes.length,
-					serverIpAddress,
-					serverPort
-				);	
-		clientSocket.send(ackPacket);
+						ackHeaderBytes,
+						ackHeaderBytes.length,
+						serverIpAddress,
+						serverPort
+						);	
+		return ackPacket;
 	}
 
 
 	private void handShakeLiveLast(DatagramPacket receivePacket) throws IOException
 	{
-//		ackNum = receiveHeader.getSeqNum();
-//		seqNum++;
+		//		ackNum = receiveHeader.getSeqNum();
+		//		seqNum++;
 		state = ClientState.ESTABLISHED;
 	}
 
@@ -215,7 +220,7 @@ public class RTPClient {
 		header.setFlags(false, false, false, false); //setting DIE flag on
 		header.setChecksum(PRECHECKSUM);
 		byte [] headerBytes = header.getHeaderBytes();
-		
+
 		byte [] data = new byte [packetSize + headerBytes.length];
 		int start = fileData.length-bytesRemaining;
 		data = Arrays.copyOfRange(fileData, start, start + packetSize);
@@ -282,64 +287,70 @@ public class RTPClient {
 
 		int tries = 0;
 		state = ClientState.DIE_WAIT_1;
-		while (tries < 5 && state != ClientState.SERVER_ACK_SENT){
+		while (state != ClientState.SERVER_ACK_SENT){
 			try
 			{
+				System.out.println("tries:" + tries);
 				clientSocket.send(teardownPacket);
 				clientSocket.receive(receivePacket);
 
-				if (!receivePacket.getAddress().equals(serverIpAddress)){
-					continue;
-				}
-
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
-				System.out.println("I am here");
-				if (isValidPacketHeader(receiveHeader) && receiveHeader.isDie() && receiveHeader.isAck()){
+				System.out.println(receiveHeader.getSeqNum());
+				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				{
+					continue;
+				}
+				System.out.println(receiveHeader.isLive() + " " + receiveHeader.isDie() + " " + receiveHeader.isAck() + " " + receiveHeader.isLast());
+				if (receiveHeader.isDie() && receiveHeader.isAck() && !receiveHeader.isLast()){
 					System.out.println("ACK from server has been sent. State is now: SERVER_ACK_SENT");
 					state=ClientState.SERVER_ACK_SENT;
 				}
 			}
 			catch (SocketTimeoutException s){
 				System.out.println("Timeout, resend");
-				tries++;
+				if(tries++>=5){
+					System.out.println("Unsuccessful Connection");
+					return;
+				}
 			}
 			catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		if (state != ClientState.SERVER_ACK_SENT){
-			System.out.println("Unsuccessful Connection");
-			return;
-		}else{
-			//entering the state where it waits for server to send DIE
-			state = ClientState.DIE_WAIT_2;
-			System.out.println("State: DIE_WAIT_2");
-			tries = 0;
-			while (tries < 5 && state != ClientState.TIME_WAIT){
-				try{
-					clientSocket.receive(receivePacket);
-
-					if (!receivePacket.getAddress().equals(serverIpAddress)){
-						continue;
+		//entering the state where it waits for server to send DIE
+		state = ClientState.DIE_WAIT_2;
+		System.out.println("State: DIE_WAIT_2");
+		tries = 0;
+		Timer timer = null;
+		while (state != ClientState.TIME_WAIT || timedTaskRun){
+			try{
+				clientSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				{
+					continue;
+				}
+				if (receiveHeader.isDie() && receiveHeader.isLast())
+				{
+					sendCloseAckState(); //sends the final ACK	
+					if(timer==null){
+						timer = new Timer();
+						timer.schedule(new timedWaitTeardown(), 5*100); //timedwaitTeardown changes state and closes socket
 					}
-
-					sendCloseAckState(receivePacket); //sends the final ACK
-				}
-				catch (SocketTimeoutException s){
-					System.out.println("Timeout, resend");
-					tries++;
-				}
-				catch (IOException e) {
-					e.printStackTrace();
 				}
 			}
-
-			Timer timer = new Timer();
-			timer.schedule(new timedWaitTeardown(), 5*100); //timedwaitTeardown changes state and closes socket
-
+			catch (SocketTimeoutException s){
+				System.out.println("Timeout, resend");
+				if(tries++>=5){
+					System.out.println("Unsuccessful Connection");
+					return;
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
-
 
 		System.out.println("exit teardown");
 	}
@@ -350,33 +361,22 @@ public class RTPClient {
 	 * @param receivePacket
 	 * @return
 	 */
-	private void sendCloseAckState(DatagramPacket receivePacket) throws IOException
+	private void sendCloseAckState() throws IOException
 	{	
-		// Wrong server IP address
-		if (!receivePacket.getAddress().equals(serverIpAddress)){
-			return;
-		}
 
-		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		//RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
 		//makes new ACK header 
 		RTPPacketHeader ackHeader = new RTPPacketHeader();
 		ackHeader.setSource(clientPort);
 		ackHeader.setDestination(serverPort);
 		ackHeader.setChecksum(PRECHECKSUM);
+		ackHeader.setSeqNum(0);
+		ackHeader.setAckNum(0);
 
-		if (isValidPacketHeader(receiveHeader) && receiveHeader.isDie() && receiveHeader.isLast())
-		{
-			System.out.println("Last DIE from Server has been received STATE: TIME_WAIT");
-			ackNum = receiveHeader.getSeqNum();
-			seqNum++;
-			state = ClientState.TIME_WAIT;
-			ackHeader.setFlags(false, true, true, true); //ack, last flags on
-		} else {
-			ackHeader.setSeqNum(seqNum);
-			ackHeader.setAckNum(0);
-			ackHeader.setFlags(false, true, false, false);
-		}
+		System.out.println("Last DIE from Server has been received STATE: TIME_WAIT");
+		state = ClientState.TIME_WAIT;
+		ackHeader.setFlags(false, true, true, true); //die, ack, last flags on
 
 		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
 
@@ -425,6 +425,7 @@ public class RTPClient {
 			state=ClientState.CLOSED;
 			clientSocket.close();
 			System.out.println("Task has been run");
+			timedTaskRun = true;
 		}
 	}
 }
