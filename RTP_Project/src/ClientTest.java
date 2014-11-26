@@ -10,14 +10,14 @@ public class ClientTest
 {
 	public static void main(String[] args)
 	{
-		/*System.out.println("===Initialize client");
+		System.out.println("===Initialize client");
 		RTPClient client = new RTPClient();
 		System.out.println("===Setup Client");
 		client.setup();
-		client.teardown();*/
+//		client.teardown();
 		
-		byte [] data = getFileBytes("C:\\Users\\Eileen\\Refreshed19.docx");
-		getFileFromBytes("C:\\Users\\Eileen\\Test\\Refreshed19.docx", data);
+//		byte [] data = getFileBytes("C:\\Users\\Eileen\\Refreshed19.docx");
+//		getFileFromBytes("C:\\Users\\Eileen\\Test\\Refreshed19.docx", data);
 		
 	}
 	
