@@ -36,6 +36,7 @@ public class RTPServer {
 
 	public RTPServer()
 	{
+		bytesReceived = new ArrayList<byte []> ();
 		serverPort = 3252;
 		try {
 			serverIpAddress = InetAddress.getLocalHost();
@@ -47,7 +48,8 @@ public class RTPServer {
 	}
 
 	public RTPServer(short sourcePort)
-	{
+	{	
+		bytesReceived = new ArrayList<byte []> ();
 		serverPort = sourcePort;
 		try {
 			serverIpAddress = InetAddress.getLocalHost();
@@ -60,6 +62,7 @@ public class RTPServer {
 
 	public RTPServer(short sourcePort, String ipAddress, short destPort){
 
+		bytesReceived = new ArrayList<byte []> ();
 	}
 
 
@@ -213,6 +216,10 @@ public class RTPServer {
 		
 		// extracts and adds data to ArrayList of byte[]s
 		byte[] data = extractData(receivePacket);
+		
+		if(bytesReceived==null){
+			System.out.println("YOU FOUND MEEE IM NULL");
+		}
 		bytesReceived.add(data);
 		
 		RTPPacketHeader dataAckHeader = new RTPPacketHeader();
@@ -250,6 +257,7 @@ public class RTPServer {
 		byte[] packet = receivePacket.getData();
 		System.arraycopy(packet, HEADER_SIZE, extractedData, 0, data_length);
 		
+		System.out.println("Extracted data length: " + extractedData.length);
 		return extractedData;
 	}
 	/**

@@ -237,7 +237,7 @@ public class RTPClient {
 		byte [] data = new byte [DATA_SIZE];
 		byte [] packetBytes = new byte [PACKET_SIZE];
 		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
-		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
+		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length); //240 OMG FIX MEEEEEEEEEEEEE joonho fix me pls
 		System.arraycopy(headerBytes, 0, packetBytes, 0, headerBytes.length);
 		System.arraycopy(data, 0, packetBytes, headerBytes.length, DATA_SIZE);
 		DatagramPacket dataPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
