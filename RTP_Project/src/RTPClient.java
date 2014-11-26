@@ -28,8 +28,9 @@ public class RTPClient {
 	private int timeout = 10000;	// milliseconds
 
 	private byte[] window = new byte[0xFFFF];
-	private int seqNum, ackNum, windowSize;
+	private int seqNum, ackNum, windowSize, bytesRemaining, packetSize;
 	private String pathName="";
+	private byte [] fileData;
 
 	public RTPClient() {
 		this.clientPort=3251;
@@ -223,7 +224,29 @@ public class RTPClient {
 		clientSocket.send(ackPacket);
 	}
 
+	private DatagramPacket createPacket(){
+		// Setup header for the data packet
+		RTPPacketHeader header = new RTPPacketHeader();
+		header.setSource(clientPort);
+		header.setDestination(serverPort);
+		header.setSeqNum(seqNum++); //should have last seq num
+		header.setAckNum(seqNum); //???
+		header.setFlags(false, false, false, false); //setting DIE flag on
+		header.setChecksum(PRECHECKSUM);
+		byte [] headerBytes = header.getHeaderBytes();
+		
+		byte [] data = new byte [packetSize + headerBytes.length];
+		int start = fileData.length-bytesRemaining;
+		data = Arrays.copyOfRange(fileData, start, start + packetSize);
 
+
+
+		byte [] combo = new byte [packetSize + headerBytes.length];
+
+		DatagramPacket dataPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
+
+
+	}
 
 
 
@@ -232,16 +255,28 @@ public class RTPClient {
 	/**
 	 * Starts sending data transfer
 	 */
-	public void startTransfer(){
+	public void startUpload(byte [] fileData){
+		this.fileData=fileData;
+		bytesRemaining=fileData.length;
 
 	}
 
 	/**
 	 * Stops the data transfer
 	 */
-	public void stopTransfer(){
+	public void stopUpload(){
 
 	}
+
+
+	public void startDownload(){
+
+	}
+
+	public void stopDownload(){
+
+	}
+
 
 	/**
 	 * Once data transfer stops, performs connection teardown
@@ -277,7 +312,7 @@ public class RTPClient {
 				}
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				
+
 				System.out.println("I am here");
 				if (isValidPacketHeader(receiveHeader) && receiveHeader.isDie() && receiveHeader.isAck()){
 					System.out.println("ACK from server has been sent. State is now: SERVER_ACK_SENT");
@@ -376,22 +411,22 @@ public class RTPClient {
 
 		return headerChecksumed == CHECKSUM;
 	}
-	
-	
+
+
 
 	private RTPPacketHeader getHeader(DatagramPacket receivePacket)
 	{
 		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
 	}
-	
+
 	public ClientState getClientState(){
 		return state;
 	}
-	
+
 	public int getWindowSize(){
 		return windowSize;
 	}
-	
+
 	public void setWindowSize(int window){
 		this.windowSize=window;
 	}
