@@ -11,14 +11,20 @@ public class ClientTest
 {
 	public static void main(String[] args)
 	{
-		System.out.println("===Initialize client");
-		RTPClient client = new RTPClient();
-//		System.out.println("===Setup Client");
-		client.setup();
-//		client.teardown();
+//		System.out.println("===Initialize client");
+//		RTPClient client = new RTPClient();
+////		System.out.println("===Setup Client");
+//		client.setup();
+////		client.teardown();
 		
-		byte [] data = getFileBytes("C:\\Users\\Eileen\\DHCPMsgExplanation.txt");
-		getFileFromBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt", data);
+//		byte [] data = getFileBytes("C:\\Users\\Eileen\\DHCPMsgExplanation.txt");
+//		getFileFromBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt", data);
+		
+		// I RUN LINUX
+//		byte [] data = getFileBytes("/home/joonho/Desktop/hello.txt");
+//		getFileFromBytes("/home/joonho/Desktop/goodbye.txt", data);
+		
+		
 		
 		//DatagramPacket packet = client.createPacket(0, data);
 		

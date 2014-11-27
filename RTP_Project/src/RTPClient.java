@@ -89,7 +89,7 @@ public class RTPClient {
 		liveHeader.setChecksum(PRECHECKSUM);
 		byte [] headerBytes = liveHeader.getHeaderBytes();
 
-		DatagramPacket setupPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
+		DatagramPacket setupPacket = new DatagramPacket(headerBytes, HEADER_SIZE, serverIpAddress, serverPort);
 
 		// Sending LIVE packet and receiving ACK
 
@@ -200,7 +200,7 @@ public class RTPClient {
 		DatagramPacket ackPacket = new DatagramPacket
 				(
 					ackHeaderBytes,
-					ackHeaderBytes.length,
+					HEADER_SIZE,
 					serverIpAddress,
 					serverPort
 				);	
@@ -215,6 +215,57 @@ public class RTPClient {
 		state = ClientState.ESTABLISHED;
 	}
 
+	/**
+	 * Starts sending data transfer
+	 */
+	public void startUpload(byte [] file){
+		fileData = file;
+		bytesRemaining = fileData.length;
+		int packetNumber = (fileData.length / DATA_SIZE) + ((fileData.length % DATA_SIZE > 0) ? 1 : 0);
+		int currPacket = 0;
+		DatagramPacket sendingPacket;
+		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
+		
+//		System.out.println("Byte stream of data file");
+//		for (byte b : fileData)
+//		{
+//			System.out.println(b);
+//		}
+//		System.out.println("========================");
+		
+		while (currPacket < packetNumber)
+		{
+			sendingPacket = createPacket(currPacket);
+			try {
+				clientSocket.send(sendingPacket);
+				clientSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				
+				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				{
+					continue;
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
+				{
+					System.out.println("I have not received the last ack");
+					sendingPacket = createPacket(++currPacket);
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
+				{
+					currPacket++;
+					System.out.println("I have received the last ack!");
+				}
+			} catch (SocketTimeoutException s) {
+				System.out.println("Timeout, resend");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		}
+	}
+	
 	public DatagramPacket createPacket(int startByteIndex){
 		// Setup header for the data packet
 		int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
@@ -237,57 +288,15 @@ public class RTPClient {
 		byte [] data = new byte [DATA_SIZE];
 		byte [] packetBytes = new byte [PACKET_SIZE];
 		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
-		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length); //240 OMG FIX MEEEEEEEEEEEEE joonho fix me pls
-		System.arraycopy(headerBytes, 0, packetBytes, 0, headerBytes.length);
-		System.arraycopy(data, 0, packetBytes, headerBytes.length, DATA_SIZE);
-		DatagramPacket dataPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
+		System.out.println(startByteIndex * DATA_SIZE + " " + data_length);
+		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
+		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
+		System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data_length);
+		
+		DatagramPacket dataPacket = new DatagramPacket(packetBytes, packetBytes.length, serverIpAddress, serverPort);
 		return dataPacket;
 	}
 
-
-	
-	/**
-	 * Starts sending data transfer
-	 */
-	public void startUpload(byte [] file){
-		fileData = file;
-		bytesRemaining = fileData.length;
-		int packetNumber = (fileData.length / DATA_SIZE) + ((fileData.length % DATA_SIZE > 0) ? 1 : 0);
-		int currPacket = 0;
-		DatagramPacket sendingPacket;
-		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
-		
-		while (currPacket < packetNumber)
-		{
-			sendingPacket = createPacket(currPacket);
-			try {
-				clientSocket.send(sendingPacket);
-				clientSocket.receive(receivePacket);
-				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				
-				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
-				{
-					continue;
-				}
-				
-				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
-				{
-					sendingPacket = createPacket(++currPacket);
-				}
-				
-				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
-				{
-					sendingPacket = createPacket(++currPacket);
-					System.out.println("I have received the last ack!");
-				}
-			} catch (SocketTimeoutException s) {
-				System.out.println("Timeout, resend");
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
-		}
-	}
 
 	/**
 	 * Stops the data transfer
@@ -323,7 +332,7 @@ public class RTPClient {
 		dieHeader.setChecksum(PRECHECKSUM);
 		byte [] headerBytes = dieHeader.getHeaderBytes();
 
-		DatagramPacket teardownPacket = new DatagramPacket(headerBytes, headerBytes.length, serverIpAddress, serverPort);
+		DatagramPacket teardownPacket = new DatagramPacket(headerBytes, HEADER_SIZE, serverIpAddress, serverPort);
 
 		// Sending DIE packet and receiving ACK
 
@@ -422,7 +431,7 @@ public class RTPClient {
 
 		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
 
-		DatagramPacket ackPacket = new DatagramPacket(ackHeaderBytes, ackHeaderBytes.length, serverIpAddress, serverPort);	
+		DatagramPacket ackPacket = new DatagramPacket(ackHeaderBytes, HEADER_SIZE, serverIpAddress, serverPort);	
 		clientSocket.send(ackPacket);
 		System.out.println("Client last ACK has been sent");
 	}

@@ -1,4 +1,6 @@
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -33,6 +35,7 @@ public class RTPServer {
 	private int seqNum, ackNum;
 	private String pathName="";
 	private ArrayList<byte[]> bytesReceived;
+	private byte[] fileData;
 
 	public RTPServer()
 	{
@@ -116,11 +119,15 @@ public class RTPServer {
 				{
 					System.out.println("I have received a data packet");
 					receiveDataPacket(receivePacket);
+					if (receiveHeader.isLast())
+					{
+						System.out.println("assembling file");
+						assembleFile();
+					}
 				}
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
 					handShakeOne(receivePacket);
-					System.out.println("Exit");
 				}
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && receiveHeader.isLast())
 				{
@@ -211,15 +218,11 @@ public class RTPServer {
 	
 	private void receiveDataPacket(DatagramPacket receivePacket) throws IOException
 	{
-		System.out.println("I am receiving the data.... wheeeee");
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
 		
 		// extracts and adds data to ArrayList of byte[]s
 		byte[] data = extractData(receivePacket);
-		
-		if(bytesReceived==null){
-			System.out.println("YOU FOUND MEEE IM NULL");
-		}
+
 		bytesReceived.add(data);
 		
 		RTPPacketHeader dataAckHeader = new RTPPacketHeader();
@@ -228,11 +231,11 @@ public class RTPServer {
 		dataAckHeader.setChecksum(PRECHECKSUM);
 		dataAckHeader.setSeqNum(0);
 		dataAckHeader.setAckNum(0);
-		dataAckHeader.setFlags(false, false, true, false);
+		dataAckHeader.setFlags(false, false, true, false);	// ACK
 		
 		if (receiveHeader.isLast())
 		{
-			dataAckHeader.setFlags(false, false, true, false);
+			dataAckHeader.setFlags(false, false, true, true); // ACK LAST
 		}
 		
 		byte[] liveAckHeaderBytes = dataAckHeader.getHeaderBytes();
@@ -249,17 +252,42 @@ public class RTPServer {
 
 	private byte[] extractData(DatagramPacket receivePacket)
 	{
-		//Check if packet is last
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
 		int data_length = receiveHeader.getWindow();
 		
 		byte[] extractedData = new byte[data_length];
 		byte[] packet = receivePacket.getData();
+		
 		System.arraycopy(packet, HEADER_SIZE, extractedData, 0, data_length);
 		
-		System.out.println("Extracted data length: " + extractedData.length);
 		return extractedData;
 	}
+	
+	private void assembleFile()
+	{
+		int bufferLength = bytesReceived.size();
+		int lastByteArrayLength = bytesReceived.get(bufferLength - 1).length;	// Length of last data
+		int fileSize = (bufferLength - 1) * DATA_SIZE + lastByteArrayLength;	// number of bytes in file
+		
+		fileData = new byte[fileSize];
+		for (int i = 0; i < bufferLength - 1; i++)
+		{
+			System.arraycopy(bytesReceived.get(i), 0, fileData, i * DATA_SIZE, DATA_SIZE);
+		}
+		
+		// Copy last data
+		System.arraycopy(bytesReceived.get(bufferLength - 1), 0, fileData, (bufferLength - 1) * DATA_SIZE, lastByteArrayLength);
+
+		// I RUN LINUX
+		getFileFromBytes("/home/joonho/Desktop/goodbye.txt", fileData);
+//		getFileFromBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt", fileData);
+		
+		//clearing out byte received buffer and file data for next uploads
+		fileData = null;
+		bytesReceived = new ArrayList<byte []> ();
+	}
+	
+	
 	/**
 	 * A method to close the server connection, 4-way handshake
 	 */
@@ -394,5 +422,29 @@ public class RTPServer {
 	
 	public void setWindowSize(int window){
 		this.windowSize=window;
+	}
+	
+	public byte[] getFile()
+	{
+		return fileData;
+	}
+	
+	public static File getFileFromBytes(String pathname, byte [] data){
+		File file = new File(pathname);
+		try (FileOutputStream fop = new FileOutputStream(file)) {
+			 
+			// if file doesn't exists, then create it
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+ 
+			fop.write(data);
+			fop.flush();
+			fop.close();
+ 
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return file;
 	}
 }

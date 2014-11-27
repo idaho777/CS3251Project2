@@ -83,7 +83,8 @@ public class ClientApplication {
 				case "get":{
 					if(split.length>1){
 						String pathName = split[1];
-						client.startUpload(getFileBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt"));
+//						client.startUpload(getFileBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt"));
+						client.startUpload(getFileBytes("/home/joonho/Desktop/hello.txt"));
 						//upload file to server
 						System.out.println("I have uploaded!!!");
 					}else{
