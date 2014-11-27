@@ -226,13 +226,6 @@ public class RTPClient {
 		DatagramPacket sendingPacket;
 		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
 		
-//		System.out.println("Byte stream of data file");
-//		for (byte b : fileData)
-//		{
-//			System.out.println(b);
-//		}
-//		System.out.println("========================");
-		
 		while (currPacket < packetNumber)
 		{
 			sendingPacket = createPacket(currPacket);
@@ -288,7 +281,6 @@ public class RTPClient {
 		byte [] data = new byte [DATA_SIZE];
 		byte [] packetBytes = new byte [PACKET_SIZE];
 		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
-		System.out.println(startByteIndex * DATA_SIZE + " " + data_length);
 		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
 		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
 		System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data_length);
