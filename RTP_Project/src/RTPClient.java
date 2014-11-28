@@ -121,7 +121,7 @@ public class RTPClient {
 				System.out.println("Received Packet");
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (!isValidPacketHeader(receivePacket))
+				if (!isValidPacketHeader(receiveHeader))
 				{
 					System.out.println("CURROPTED in " + state);
 					continue;
@@ -324,7 +324,7 @@ public class RTPClient {
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
 				System.out.println(receiveHeader.getSeqNum());
-				if (!isValidPacketHeader(receivePacket))
+				if (!isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
@@ -354,7 +354,7 @@ public class RTPClient {
 			try{
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (!isValidPacketHeader(receivePacket))
+				if (!isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
@@ -420,7 +420,13 @@ public class RTPClient {
 
 		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
 	}
+	
+	private boolean isValidPacketHeader(RTPPacketHeader header)
+	{
+		int headerChecksum = header.getChecksum();
 
+		return (headerChecksum == CHECKSUM) ;
+	}
 
 
 	private RTPPacketHeader getHeader(DatagramPacket receivePacket)
