@@ -653,6 +653,111 @@ public class RTPClient {
 		this.windowSize=window;
 	}
 	
+	public void terminateFromServer(DatagramPacket receivePacket){
+		state = ClientState.DIE_WAIT_1;
+		byte[] arr = new byte[PACKET_SIZE];
+		receivePacket = new DatagramPacket(arr, arr.length);
+		
+		int tries = 0;
+		while (state != ClientState.CLOSED)
+		{
+			try
+			{
+				sendAckCloseState();
+				sendDieCloseState();
+				clientSocket.receive(receivePacket);
+				
+				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+				
+				// Checksum validation for data received from client
+				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				{
+					// is not Valid Packet, send back
+					// set same flags but ack is false
+					// send same packet as received
+					// so client will resend with same everything
+					continue;
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				{
+					System.out.println("I am the cause of repeat");
+					continue;
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isDie() && receiveHeader.isAck() && receiveHeader.isLast())
+				{
+					state = ClientState.CLOSED;
+					clientSocket.close();
+				}
+				
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Have not received DIE from Server for termination from the server");
+				if(tries++ >= 5){
+					System.out.println("Unable to terminate the server...");
+					return;
+				}
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	private void sendAckCloseState() throws IOException
+	{
+		// DIE Ack Header
+		RTPPacketHeader dieAckHeader = new RTPPacketHeader();
+		dieAckHeader.setSource(clientPort);
+		dieAckHeader.setDestination(serverPort);
+		dieAckHeader.setChecksum(PRECHECKSUM);
+		dieAckHeader.setSeqNum(0);
+		dieAckHeader.setAckNum(0);
+		dieAckHeader.setFlags(false, true, true, false, false); //ack, die flags on
+		
+		state = ClientState.DIE_WAIT_2;
+
+		byte[] dieAckHeaderBytes = dieAckHeader.getHeaderBytes();
+
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					dieAckHeaderBytes,
+					dieAckHeaderBytes.length,
+					clientIpAddress,
+					clientPort
+				);
+
+		clientSocket.send(sendPacket);
+
+	}
+	
+	private void sendDieCloseState() throws IOException{
+		// Setup header for the DIE packet
+		RTPPacketHeader dieHeader = new RTPPacketHeader();
+		dieHeader.setSource(clientPort);
+		dieHeader.setDestination(serverPort);
+		dieHeader.setSeqNum(10); //should have last seq num 
+		dieHeader.setAckNum(0); //?????? What should these be after the ACK
+		dieHeader.setFlags(false, true, false, false, true); //setting DIE flag on
+		dieHeader.setChecksum(PRECHECKSUM);
+		byte [] headerBytes = dieHeader.getHeaderBytes();
+
+		DatagramPacket diePacket = new DatagramPacket
+				(
+					headerBytes,
+					headerBytes.length,
+					clientIpAddress,
+					clientPort
+				);
+		
+		state = ClientState.LAST_ACK;
+
+		clientSocket.send(diePacket);
+		System.out.println("Server DIE has been sent");
+	}
 	private void resendPacket(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
