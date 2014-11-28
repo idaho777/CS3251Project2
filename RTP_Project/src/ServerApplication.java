@@ -47,7 +47,7 @@ public class ServerApplication {
 
 					System.out.println("Initializing RTP Server...");
 					//server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
-					server = new RTPServer();
+					server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
 					server.openSession();
 
 					System.out.println("Initialization Complete");		

@@ -63,9 +63,18 @@ public class RTPServer {
 		System.out.println("Server IP: " + serverIpAddress);
 	}
 
-	public RTPServer(short sourcePort, String ipAddress, short destPort){
+	public RTPServer(short serverPort, String clientIpAddress, short clientPort){
 
 		bytesReceived = new ArrayList<byte []> ();
+		this.serverPort = serverPort;
+		this.clientPort = clientPort;
+		try {
+			serverIpAddress = InetAddress.getLocalHost();
+			this.clientIpAddress = InetAddress.getByName(clientIpAddress);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		state = ServerState.CLOSED;
 	}
 
 
@@ -80,17 +89,20 @@ public class RTPServer {
 		{
 			e.printStackTrace();
 		}
-		byte[] arr = new byte[1024];
-		receivePacket = new DatagramPacket(arr, arr.length);
+		byte[] arr = new byte[PACKET_SIZE];
+		receivePacket = new DatagramPacket(arr, PACKET_SIZE);
 
 		state = ServerState.LISTEN;
 		// handshake
+		System.out.println(serverPort + " " + serverIpAddress);
+		System.out.println(clientPort + " " + clientIpAddress);
 		while (state != ServerState.CLOSED)
 		{
 			try
 			{
 				// Receive Packet
 				serverSocket.receive(receivePacket);
+				System.out.println("Received Packet");
 				
 				// Get Header of Packet and 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
@@ -102,6 +114,7 @@ public class RTPServer {
 						continue;
 					}
 				}
+				System.out.println(clientIpAddress);
 				
 				// Checksum validation
 				if (!isValidPacketHeader(receiveHeader))
@@ -157,8 +170,6 @@ public class RTPServer {
 
 		// Receive Packet
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
-		clientIpAddress = receivePacket.getAddress();
-		clientPort = receiveHeader.getSource();
 		
 		// Live Ack Header
 		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
@@ -180,6 +191,7 @@ public class RTPServer {
 					clientIpAddress,
 					clientPort
 				);
+		System.out.println("Sending to " + clientIpAddress + " with port: " + clientPort);
 		serverSocket.send(sendPacket);
 	}
 

@@ -48,7 +48,7 @@ public class ClientApplication {
 
 					System.out.println("Initializing RTPClient...");
 					//client = new RTPClient(clientPort, netEmuIpAddress, netEmuPort);
-					client = new RTPClient();
+					client = new RTPClient(clientPort, netEmuIpAddress, netEmuPort);
 					System.out.println("Initialization Complete");		
 				}catch(NumberFormatException e){
 					System.err.println("The port argument must be a valid port number.");

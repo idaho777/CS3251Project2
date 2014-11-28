@@ -70,6 +70,9 @@ public class RTPClient {
 	public void setup()
 	{
 		// setup socket
+		System.out.println(clientPort + " " + clientIpAddress);
+		System.out.println(serverPort + " " + serverIpAddress);
+		
 		try {
 			clientSocket = new DatagramSocket(clientPort, clientIpAddress);
 		} catch (SocketException e) {
@@ -109,7 +112,9 @@ public class RTPClient {
 			try
 			{
 				clientSocket.send(setupPacket);
+				System.out.println("Send Packet");
 				clientSocket.receive(receivePacket);
+				System.out.println("Received Packet");
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
@@ -120,6 +125,7 @@ public class RTPClient {
 				// Assuming valid and Acknowledged
 				if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast())
 				{
+					System.out.println("GET LIVEE");
 					setupPacket = handShakeLiveAck(receivePacket);
 				}
 				
@@ -203,7 +209,7 @@ public class RTPClient {
 					HEADER_SIZE,
 					serverIpAddress,
 					serverPort
-				);	
+				);
 		return ackPacket;
 	}
 
