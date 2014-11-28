@@ -115,7 +115,7 @@ public class RTPServer {
 				// Checksum validation
 				if (!isValidPacketHeader(receiveHeader))
 				{
-					resendPacket(receivePacket);
+					resendPacket(receivePacket, false);
 					System.out.println("resending packet");
 					continue;
 				}
@@ -127,7 +127,7 @@ public class RTPServer {
 					if (receiveHeader.getAckNum() != (seqNum + 1) % MAX_SEQ_NUM)
 					{
 						System.out.println("resending valid packet " + seqNum + " Ack Num: " + ackNum);
-						resendPacket(receivePacket);
+						resendPacket(receivePacket, true);
 					}
 					else
 					{
@@ -167,10 +167,13 @@ public class RTPServer {
 		}
 	}
 
-	private void resendPacket(DatagramPacket receivePacket) throws IOException
+	private void resendPacket(DatagramPacket receivePacket, boolean wasAcked) throws IOException
 	{
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
-		receiveHeader.isAck();
+		if (wasAcked)
+		{
+			receiveHeader.setAckNum(ackNum);
+		}
 		receiveHeader.setFlags
 			(
 				receiveHeader.isLive(),

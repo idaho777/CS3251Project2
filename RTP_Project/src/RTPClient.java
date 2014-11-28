@@ -123,7 +123,7 @@ public class RTPClient {
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 				if (!isValidPacketHeader(receiveHeader))
 				{
-					System.out.println("CURROPTED in " + state);
+					System.out.println("CORRUpTED in " + state);
 					continue;
 				}
 
@@ -221,15 +221,17 @@ public class RTPClient {
 				{
 					continue;
 				}
-				seqNum = (seqNum + 1) % MAX_SEQ_NUM;
-				ackNum = receiveHeader.getSeqNum();
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
+					seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+					ackNum = receiveHeader.getSeqNum();
 					sendingPacket = createPacket(++currPacket);
 				}
 				
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
 				{
+					seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+					ackNum = receiveHeader.getSeqNum();
 					currPacket++;
 					System.out.println("I have received the last ack!");
 				}
@@ -424,7 +426,7 @@ public class RTPClient {
 	
 	private boolean isValidPacketHeader(RTPPacketHeader header)
 	{
-		int headerChecksum = header.getChecksum();
+		int headerChecksum = CheckSum.getChecksum(header.getChecksum());
 
 		return (headerChecksum == CHECKSUM) ;
 	}
