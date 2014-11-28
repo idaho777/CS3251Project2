@@ -73,8 +73,8 @@ public class ServerApplication {
 			//terminate
 			input = server.openSession();
 			System.out.println("Timeout");
-			
-			Scanner scan = new Scanner(System.in);
+//			
+//			Scanner scan = new Scanner(System.in);
 
 			String cmd = null;
 //				 cmd = scan.nextLine().toLowerCase();

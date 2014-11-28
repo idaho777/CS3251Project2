@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -199,7 +200,7 @@ public class RTPClient {
 		nameHeader.setChecksum(PRECHECKSUM);
 		nameHeader.setSeqNum(0);
 		nameHeader.setAckNum(0);
-		nameHeader.setFlags(false, false, false, true, false); // Live FIRST
+		nameHeader.setFlags(false, false, false, true, false); // LIVE FIRST
 		nameHeader.setWindow(name.length);
 
 		byte[] data = RTPTools.combineHeaderData(nameHeader.getHeaderBytes(), name);
@@ -333,37 +334,57 @@ public class RTPClient {
 		dlHeader.setSource(clientPort);
 		dlHeader.setDestination(serverPort);
 		dlHeader.setSeqNum(seqNum);
-		dlHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM); //???
-		dlHeader.setFlags(true, true, false, false, false); //setting LIVE flag on
+		dlHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+		dlHeader.setFlags(true, true, false, true, false); // LIVE DIE FIRST
 		dlHeader.setChecksum(PRECHECKSUM);
+		dlHeader.setWindow(fileName.getBytes().length);
 		byte [] headerBytes = dlHeader.getHeaderBytes();
 		byte [] data = fileName.getBytes();
-		byte [] combinedData = RTPTools.combineHeaderData(headerBytes, data);
+		byte [] sendPacket = RTPTools.combineHeaderData(headerBytes, data);
 
-		DatagramPacket dlPacket = new DatagramPacket(combinedData, combinedData.length, serverIpAddress, serverPort);
-
+		DatagramPacket dlPacket = new DatagramPacket(sendPacket, sendPacket.length, serverIpAddress, serverPort);
+		int currPacket = 0;
 		int tries = 0;
 		boolean finishedDownloading=false;
-		boolean canStart=false;
-		while (!canStart)
+		boolean canDownload = true;
+		while (!finishedDownloading)
 		{
 			try
 			{
+				System.out.println("Send");
 				clientSocket.send(dlPacket);
+				System.out.println("Sent");
 				clientSocket.receive(receivePacket);
+				System.out.println("receive");
 
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+				boolean isLast = receiveHeader.isLast();
 				if (!RTPTools.isValidPacketHeader(receiveHeader))
 				{
 					System.out.println("CORRUPTED in " + state);
 					continue;
 				}
 				// Assuming valid and Acknowledged
-				if (receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
-					System.out.println("ACK Received to start download");
-					canStart=true;
+					System.out.println("Ack First");
+					dlPacket = receiveDataPacket(receivePacket, currPacket, true);
 				}
+				// Downloading files
+				else if (receiveHeader.isLive() && receiveHeader.isFirst() && receiveHeader.isAck())
+				{
+					System.out.println("Ack");
+					currPacket++;
+					dlPacket = receiveDataPacket(receivePacket, currPacket, false);
+					finishedDownloading = isLast;
+				}
+				// Cannot find file
+				else if (receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck())
+				{
+					System.out.println("WTF");
+					return false;
+				}
+				System.out.println("SKIPP");
 			}
 			catch (SocketTimeoutException s)
 			{
@@ -378,43 +399,8 @@ public class RTPClient {
 				e.printStackTrace();
 				return false;
 			}
+			
 
-		}
-		
-		while(!finishedDownloading){
-			try
-			{
-				clientSocket.receive(receivePacket);
-				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-				if (receiveHeader.getAckNum() != (seqNum + 1) % MAX_SEQ_NUM)
-				{
-					System.out.println("resending valid packet " + seqNum + " Ack Num: " + ackNum);
-					resendPacket(receivePacket);
-				}
-				else
-				{
-					receiveDataPacket(receivePacket);
-					if (receiveHeader.isLast())
-					{
-						System.out.println("assembling file");
-						assembleFile();
-						finishedDownloading=true;
-					}	
-				}
-			}
-			catch (SocketTimeoutException s)
-			{
-				System.out.println("Timeout, resend");
-				if (tries++ >= 5)
-				{
-					System.out.println("Download could not be completed");
-					return false;
-				}
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-				return false;
-			}
 		}
 		System.out.println("Finishes downloading");
 		
@@ -519,14 +505,16 @@ public class RTPClient {
 		System.out.println("exit teardown");
 	}
 	
-	private void receiveDataPacket(DatagramPacket receivePacket) throws IOException
+	private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum, boolean first) throws IOException
 	{
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 		
+		if (!first)
+		{
 		// extracts and adds data to ArrayList of byte[]s
 		byte[] data = RTPTools.extractData(receivePacket);
-
 		bytesReceived.add(data);
+		}
 		
 		RTPPacketHeader dataAckHeader = new RTPPacketHeader();
 		dataAckHeader.setSource(clientPort);
@@ -537,24 +525,27 @@ public class RTPClient {
 		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 		dataAckHeader.setSeqNum(seqNum);
 		dataAckHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
-		dataAckHeader.setFlags(false, false, true, false, false);	// ACK
-		
+		dataAckHeader.setFlags(true, false, false, true, false);	// ACK
 		if (receiveHeader.isLast())
 		{
 			dataAckHeader.setFlags(false, false, true, false, true); // ACK LAST
 		}
-		
-		byte[] dlAckHeaderBytes = dataAckHeader.getHeaderBytes();
 
-		dataAckHeader.setHashCode(CheckSum.getHashCode(dlAckHeaderBytes));
+		byte[] dlAckHeaderBytes = dataAckHeader.getHeaderBytes();
+		byte[] dataBytes = ByteBuffer.allocate(4).putInt(nextPacketNum).array();
+		dataAckHeader.setWindow(dataBytes.length);
+		byte[] packet = RTPTools.combineHeaderData(dlAckHeaderBytes, dataBytes);
+		
+//		dataAckHeader.setHashCode(CheckSum.getHashCode(dlAckHeaderBytes));  << this isn't how it works
+		
 		DatagramPacket sendPacket = new DatagramPacket
 				(
-					dlAckHeaderBytes,
-					dlAckHeaderBytes.length,
+					packet,
+					PACKET_SIZE,
 					serverIpAddress,
 					serverPort
 				);
-		clientSocket.send(sendPacket);
+		return sendPacket;
 	}
 	
 	/**

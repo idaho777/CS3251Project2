@@ -30,6 +30,8 @@ public class ClientApplication {
 
 		Scanner scan = new Scanner(System.in);
 		Pattern ipPattern  = Pattern.compile(IPADDRESS_PATTERN);
+		boolean connected = false;
+		boolean downloaded = false;
 
 		if(args.length > 0 && args[0].equalsIgnoreCase("fta-client")){
 			if (args.length > 3){
@@ -76,11 +78,12 @@ public class ClientApplication {
 			byte [] fileData2 = null;
 			if(split.length>0 && !cmd.equals("disconnect")){
 				switch(split[0]){
-				case "connect":{ 
-					if(client.setup()){
+				case "connect":{
+					if(!connected && client.setup()){
 						System.out.println("Client has successfully connected to the server");
+						connected = true;
 					}else{
-						System.out.println("Connection failed");
+						System.out.println("Cannot connect");
 					}
 					break;
 				}
@@ -117,10 +120,14 @@ public class ClientApplication {
 				case "get":{
 					if(split.length>1){
 						String pathName = split[1];
-						long start = System.nanoTime(); 
-						//client.startDownload(getFileBytes(pathName)); //TODO implement this once this is finished
+						downloaded = client.startDownload(pathName); //TODO implement this once this is finished
 						//download file from server
-						long elapsedTime = System.nanoTime() - start;
+						if (!downloaded)
+						{
+							System.out.println("File didn't download");
+						}
+//						System.out.println("Done getting");
+//						long elapsedTime = System.nanoTime() - start;
 						/*if(startUpload){
 						System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
 						}else{

@@ -8,6 +8,8 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -142,22 +144,37 @@ public class RTPServer {
 						}	
 					}
 				}
-				else if (!receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isLast())
+				// SENDING FILE NAME FOR UPLOAD = FIRST
+				else if ( receiveHeader.isFirst() && !receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
 					receiveName(receivePacket);
 				}
-				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				// ASK FOR DOWNLOAD = LIVE FIRST DIE
+				else if (receiveHeader.isLive() && receiveHeader.isFirst() && receiveHeader.isDie() && !receiveHeader.isLast() && !receiveHeader.isLast())
+				{
+					System.out.println("Checking if can download");
+					sendDownloadAck(receivePacket);
+				}
+				// Uploading to client = LIVE FIRST
+				else if (receiveHeader.isFirst() && receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				{
+					sendDownload(receivePacket);
+				}
+				// HAND SHAKE ONE = LIVE
+				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isFirst() && !receiveHeader.isLast())
 				{
 					System.out.println("HAND SHAKE ONE");
 					handShakeOne(receivePacket);
 				}
-				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && receiveHeader.isLast())
+				// HAND SHAKE TWO = LIVE LAST
+				else if (receiveHeader.isLive() && receiveHeader.isLast() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isFirst())
 				{
 					System.out.println("HAND SHAKE TWO");
 					handShakeTwo(receivePacket);
 					System.out.println(seqNum + " ack num : " + ackNum);
 				}
-				else if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				// close = DIE
+				else if (receiveHeader.isDie() && !receiveHeader.isLive() && !receiveHeader.isAck() && !receiveHeader.isFirst() && !receiveHeader.isLast())
 				{
 					close();
 				}	
@@ -174,6 +191,7 @@ public class RTPServer {
 		return pathName;
 	}
 
+		
 	private void resendPacket(DatagramPacket receivePacket, boolean wasAcked) throws IOException
 	{
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
@@ -222,8 +240,6 @@ public class RTPServer {
 	
 	private void receiveName(DatagramPacket receivePacket) throws IOException
 	{
-		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-		
 		// extracts and adds data to ArrayList of byte[]s
 		byte[] data = RTPTools.extractData(receivePacket);
 
@@ -251,17 +267,15 @@ public class RTPServer {
 	
 	private void handShakeOne(DatagramPacket receivePacket) throws IOException
 	{
-
 		// Receive Packet
-		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 		
 		// Live Ack Header
 		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
 		liveAckHeader.setSource(serverPort);
 		liveAckHeader.setDestination(clientPort);
 		liveAckHeader.setChecksum(PRECHECKSUM);
-		liveAckHeader.setSeqNum(seqNum);
-		liveAckHeader.setAckNum(ackNum);
+		liveAckHeader.setSeqNum(0);
+		liveAckHeader.setAckNum(0);
 		liveAckHeader.setFlags(true, false, true, false, false);	// live, !die, !ack, !last
 
 		state = ServerState.LIVE_RCVD;
@@ -309,7 +323,120 @@ public class RTPServer {
 		serverSocket.send(sendPacket);
 	}
 
+	private void sendDownloadAck(DatagramPacket receivePacket) throws IOException
+	{
+		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+		
+		byte[] dataBytes = RTPTools.extractData(receivePacket);
+		String fileName = new String(dataBytes); 
+		String filePath = System.getProperty("user.dir") + "/" + fileName;
+		System.out.println("file name" + fileName);
+		System.out.println("file path" + filePath);
+		
+		fileData = RTPTools.getFileBytes(filePath);
+		
+		RTPPacketHeader downloadHeader = new RTPPacketHeader();
+		downloadHeader.setSource(serverPort);
+		downloadHeader.setDestination(clientPort);
+		downloadHeader.setChecksum(PRECHECKSUM);
+		
+
+		ackNum = receiveHeader.getSeqNum();
+		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+		downloadHeader.setSeqNum(seqNum);
+		downloadHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
 	
+		if (fileData == null)
+		{
+			downloadHeader.setFlags(false, true, true, true, false); // DIE TRUE FIRST
+		}
+		else
+		{
+			// File is found
+			downloadHeader.setFlags(true, false, true, true, false);
+			System.out.println("File Found");
+		}
+		
+		byte[] liveAckHeaderBytes = downloadHeader.getHeaderBytes();
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					liveAckHeaderBytes,
+					liveAckHeaderBytes.length,
+					clientIpAddress,
+					clientPort
+				);
+		serverSocket.send(sendPacket);
+	}
+	
+	private void sendDownload(DatagramPacket receivePacket) throws IOException
+	{
+		byte[] receiveData = RTPTools.extractData(receivePacket);
+		ByteBuffer wrapped = ByteBuffer.wrap(receiveData); // big-endian by default
+		int currPacket = wrapped.getInt();
+		System.out.println("CurrPacket " + currPacket);
+		
+		int bytesRemaining = fileData.length - currPacket * DATA_SIZE;
+		int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
+		
+		RTPPacketHeader header = new RTPPacketHeader();
+		header.setSource(clientPort);
+		header.setDestination(serverPort);
+		header.setSeqNum(seqNum);
+		header.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+		header.setWindow(data_length);
+		header.setFlags(false, false, true, true, false); 
+		header.setChecksum(PRECHECKSUM);
+		header.setWindow(data_length);
+		
+		if (bytesRemaining <= DATA_SIZE) { // last packet
+			header.setFlags(false, false, true, true, true);
+		}
+
+		byte [] headerBytes = header.getHeaderBytes();
+		byte [] data = new byte [DATA_SIZE];
+		byte [] packetBytes = new byte [PACKET_SIZE];
+		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
+		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
+		System.arraycopy(fileData, currPacket * DATA_SIZE, packetBytes, HEADER_SIZE, data_length);
+
+		header.setHashCode(CheckSum.getHashCode(data));
+
+		DatagramPacket dataPacket = new DatagramPacket(packetBytes, packetBytes.length, clientIpAddress, clientPort);
+		serverSocket.send(dataPacket);
+	}
+	
+	public DatagramPacket createPacket(int startByteIndex){
+		// Setup header for the data packet
+		int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
+		int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
+		
+		RTPPacketHeader header = new RTPPacketHeader();
+		header.setSource(clientPort);
+		header.setDestination(serverPort);
+		header.setSeqNum(seqNum);
+		header.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+		header.setWindow(data_length);
+		header.setFlags(false, false, false, false, false); 
+		header.setChecksum(PRECHECKSUM);
+		header.setWindow(data_length);
+		
+		if (bytesRemaining <= DATA_SIZE) { // last packet
+			header.setFlags(false, false, false, false, true);
+		}
+
+		byte [] headerBytes = header.getHeaderBytes();
+		byte [] data = new byte [DATA_SIZE];
+		byte [] packetBytes = new byte [PACKET_SIZE];
+		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
+		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
+		System.arraycopy(fileData, startByteIndex * DATA_SIZE, packetBytes, HEADER_SIZE, data_length);
+
+		header.setHashCode(CheckSum.getHashCode(data));
+
+		DatagramPacket dataPacket = new DatagramPacket(packetBytes, packetBytes.length, serverIpAddress, serverPort);
+		return dataPacket;
+	}
+
 	private void receiveDataPacket(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);

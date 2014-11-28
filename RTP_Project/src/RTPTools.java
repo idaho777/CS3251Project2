@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -82,6 +83,8 @@ public class RTPTools {
 		byte[] data=null;
 		try {
 			data = Files.readAllBytes(path);
+		} catch(NoSuchFileException e1) {
+			System.out.println("File doesn't exist");
 		} catch (IOException e) {
 			System.err.println("File could not be read");
 			e.printStackTrace();
