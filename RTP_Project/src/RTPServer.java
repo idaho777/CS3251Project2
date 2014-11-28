@@ -117,7 +117,7 @@ public class RTPServer {
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 
 				// Checksum validation
-				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
 					resendPacket(receivePacket, false);
 					continue;

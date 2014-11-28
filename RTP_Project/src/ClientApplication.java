@@ -1,11 +1,14 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,7 +32,13 @@ public class ClientApplication {
 		//Initialization handshake
 
 		Scanner scan = new Scanner(System.in);
-		Pattern ipPattern  = Pattern.compile(IPADDRESS_PATTERN);
+		Pattern ipPattern  = Pattern.compile(IPADDRESS_PATTERN);	
+		try {
+			System.out.println(InetAddress.getLocalHost().toString());
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		if(args.length > 0 && args[0].equalsIgnoreCase("fta-client")){
 			if (args.length > 3){
@@ -37,6 +46,7 @@ public class ClientApplication {
 					//Format of command fta-client X A P
 					//X is the port the client will bind to
 					clientPort = Integer.parseInt(args[1]);
+				
 
 					//A is the IP address of NetEMU
 					Matcher matcher = ipPattern.matcher(args[2]);
@@ -91,6 +101,7 @@ public class ClientApplication {
 						long start = System.nanoTime(); 
 
 						String filePath = System.getProperty("user.dir") + "/" + fileName;
+						System.out.println(filePath);
 						byte[] file = getFileBytes(filePath);
 						if (file != null)
 						{
@@ -102,6 +113,7 @@ public class ClientApplication {
 							System.out.println("File does not exist");
 						}
 						long elapsedTime = System.nanoTime() - start;
+						System.out.println("Elapsed time: " + elapsedTime);
 						System.out.println("done");
 						/*if(startUpload){
 							System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
@@ -117,10 +129,12 @@ public class ClientApplication {
 				case "get":{
 					if(split.length>1){
 						String pathName = split[1];
-						long start = System.nanoTime(); 
+						long start = System.nanoTime();
 						//client.startDownload(getFileBytes(pathName)); //TODO implement this once this is finished
 						//download file from server
-						long elapsedTime = System.nanoTime() - start;
+						long elapsedTime = (System.nanoTime() - start);
+						double seconds = (double)elapsedTime / 1000000000.0;
+						System.out.println("Elapsed time: " + seconds + seconds);
 						/*if(startUpload){
 						System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
 						}else{
