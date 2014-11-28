@@ -69,7 +69,10 @@ public class RTPServer {
 		this.serverPort = serverPort;
 		this.clientPort = clientPort;
 		try {
-			serverIpAddress = InetAddress.getLocalHost();
+
+			this.serverIpAddress = InetAddress.getLocalHost();
+
+//			this.clientIpAddress = InetAddress.getLocalHost();
 			this.clientIpAddress = InetAddress.getByName(clientIpAddress);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -102,19 +105,8 @@ public class RTPServer {
 			{
 				// Receive Packet
 				serverSocket.receive(receivePacket);
-				System.out.println("Received Packet");
-				
 				// Get Header of Packet and 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (clientIpAddress == null) {
-					clientIpAddress = receivePacket.getAddress();
-				} else {
-					// incorrect Client IP Address
-					if (!receivePacket.getAddress().equals(clientIpAddress)) {
-						continue;
-					}
-				}
-				System.out.println(clientIpAddress);
 				
 				// Checksum validation
 				if (!isValidPacketHeader(receiveHeader))
@@ -140,10 +132,12 @@ public class RTPServer {
 				}
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
+					System.out.println("HAND SHAKE ONE");
 					handShakeOne(receivePacket);
 				}
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && receiveHeader.isLast())
 				{
+					System.out.println("HAND SHAKE TWO");
 					handShakeTwo(receivePacket);
 				}
 				else if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())

@@ -55,7 +55,9 @@ public class RTPClient {
 		this.serverPort=serverPort;
 		try {
 			this.clientIpAddress = InetAddress.getLocalHost();
+			
 			this.serverIpAddress = InetAddress.getByName(serverIpAddress);
+//			this.serverIpAddress = InetAddress.getLocalHost();
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -117,8 +119,9 @@ public class RTPClient {
 				System.out.println("Received Packet");
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receiveHeader))
 				{
+					System.out.println("LOOOP MEEEE");
 					continue;
 				}
 
@@ -131,6 +134,7 @@ public class RTPClient {
 				
 				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
 				{
+					System.out.println("GET LIVE ACK");
 					handShakeLiveLast(receivePacket);
 				}
 			}
