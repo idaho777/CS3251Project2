@@ -256,7 +256,7 @@ public class RTPClient {
 //					System.out.println("Not valid packet hashcode");
 //					continue;
 //				}
-				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
 					continue;
 				}

@@ -44,26 +44,49 @@ public class RTPTools {
 		return extractedData;
 	}
 	
+	public static byte[] extractData(DatagramPacket receivePacket, int headerSize, int dataSize)
+	{
+		RTPPacketHeader receiveHeader = getHeader(receivePacket,headerSize);
+		
+		byte[] extractedData = new byte[dataSize];
+		byte[] packet = receivePacket.getData();
+		
+		System.arraycopy(packet, HEADER_SIZE, extractedData, 0, dataSize);
+		
+		return extractedData;
+	}
+	
 	
 
 	public static boolean isValidPacketHeader(DatagramPacket packet)
 	{
-		int headerChecksum = CheckSum.getChecksum(getHeader(packet).getChecksum());
+		RTPPacketHeader header = getHeader(packet);
+		int headerChecksum = header.getChecksum();
+		int hashCode = header.getHashCode();
+		byte [] data = extractData(packet);
+		boolean hashCodes = (hashCode==CheckSum.getChecksumInt(data));
 
-		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
+		return (headerChecksum == PRECHECKSUM) && (hashCodes);
 	}
 
 	public static boolean isValidPacketHeader(RTPPacketHeader header)
 	{
-		int headerChecksum = CheckSum.getChecksum(header.getChecksum());
-
+		int headerChecksum = header.getChecksum();
 		return (headerChecksum == CHECKSUM) ;
+		
+		//check for hashCode
+		
 	}
 	
 
 	public static RTPPacketHeader getHeader(DatagramPacket receivePacket)
 	{
 		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
+	}
+	
+	public static RTPPacketHeader getHeader(DatagramPacket receivePacket, int headerSize)
+	{
+		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, headerSize));
 	}
 	
 	
