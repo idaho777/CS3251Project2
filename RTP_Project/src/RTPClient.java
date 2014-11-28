@@ -121,7 +121,7 @@ public class RTPClient {
 				System.out.println("Received Packet");
 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (!isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receivePacket))
 				{
 					System.out.println("CURROPTED in " + state);
 					continue;
@@ -216,17 +216,14 @@ public class RTPClient {
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 				
-				if (!isValidPacketHeader(receiveHeader) || !receiveHeader.isAck() ||
-						receiveHeader.getAckNum() != (seqNum + 1) % MAX_SEQ_NUM)
+				if (!isValidPacketHeader(receivePacket))
 				{
 					continue;
 				}
-				seqNum = receiveHeader.getAckNum();
-				ackNum = (receiveHeader.getSeqNum()) + 1 % MAX_SEQ_NUM;
+				
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
 					System.out.println("I have not received the last ack");
-
 					sendingPacket = createPacket(++currPacket);
 				}
 				
@@ -251,8 +248,8 @@ public class RTPClient {
 		RTPPacketHeader header = new RTPPacketHeader();
 		header.setSource(clientPort);
 		header.setDestination(serverPort);
-		header.setSeqNum(seqNum); //should have last seq num
-		header.setAckNum(ackNum); //???
+		header.setSeqNum(seqNum++); //should have last seq num
+		header.setAckNum(seqNum); //???
 		header.setWindow(data_length);
 		header.setFlags(false, false, false, false); 
 		header.setChecksum(PRECHECKSUM);
@@ -269,6 +266,8 @@ public class RTPClient {
 		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
 		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
 		System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data_length);
+		
+		header.setHashCode(CheckSum.getHashCode(data));
 		
 		DatagramPacket dataPacket = new DatagramPacket(packetBytes, packetBytes.length, serverIpAddress, serverPort);
 		return dataPacket;
@@ -325,7 +324,7 @@ public class RTPClient {
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
 				System.out.println(receiveHeader.getSeqNum());
-				if (!isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receivePacket))
 				{
 					continue;
 				}
@@ -355,7 +354,7 @@ public class RTPClient {
 			try{
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (!isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receivePacket))
 				{
 					continue;
 				}
@@ -414,11 +413,12 @@ public class RTPClient {
 	}
 
 
-	private boolean isValidPacketHeader(RTPPacketHeader header)
+	private boolean isValidPacketHeader(DatagramPacket packet)
 	{
-		int headerChecksumed = CheckSum.getChecksum(header.getChecksum());
+		int headerChecksum = CheckSum.getChecksum(getHeader(packet).getChecksum());
+		CheckSum.isHashcodeValid(packet);
 
-		return headerChecksumed == CHECKSUM;
+		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
 	}
 
 
