@@ -31,7 +31,7 @@ public class RTPClient {
 	private InetAddress clientIpAddress, serverIpAddress;
 	private DatagramSocket clientSocket;
 	private Random rand;
-	
+
 	private int timeout = 10000;	// milliseconds
 
 	private byte[] window = new byte[MAX_SEQ_NUM];
@@ -63,7 +63,7 @@ public class RTPClient {
 		}
 		rand = new Random();
 		seqNum = rand.nextInt(MAX_SEQ_NUM);
-//		seqNum = 10;
+		//		seqNum = 10;
 		state = ClientState.CLOSED;
 	}
 
@@ -133,7 +133,7 @@ public class RTPClient {
 					System.out.println("GET LIVEE");
 					setupPacket = handShakeLiveAck(receivePacket);
 				}
-				
+
 				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
 				{
 					System.out.println("GET LIVE ACK");
@@ -154,7 +154,7 @@ public class RTPClient {
 				e.printStackTrace();
 				return false;
 			}
-			
+
 		}
 		System.out.println("exit setup()");
 		return true;
@@ -175,11 +175,11 @@ public class RTPClient {
 		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
 		DatagramPacket ackPacket = new DatagramPacket
 				(
-					ackHeaderBytes,
-					HEADER_SIZE,
-					serverIpAddress,
-					serverPort
-				);
+						ackHeaderBytes,
+						HEADER_SIZE,
+						serverIpAddress,
+						serverPort
+						);
 		System.out.println("SENDING SHAKE 2");
 		return ackPacket;
 	}
@@ -207,7 +207,7 @@ public class RTPClient {
 		int currPacket = 0;
 		DatagramPacket sendingPacket;
 		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
-		
+
 		while (currPacket < packetNumber)
 		{
 			sendingPacket = createPacket(currPacket);
@@ -216,7 +216,7 @@ public class RTPClient {
 				clientSocket.send(sendingPacket);
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				
+
 				if (!isValidPacketHeader(receivePacket))
 				{
 					continue;
@@ -227,7 +227,7 @@ public class RTPClient {
 					ackNum = receiveHeader.getSeqNum();
 					sendingPacket = createPacket(++currPacket);
 				}
-				
+
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
 				{
 					seqNum = (seqNum + 1) % MAX_SEQ_NUM;
@@ -240,10 +240,10 @@ public class RTPClient {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			
+
 		}
 	}
-	
+
 	public DatagramPacket createPacket(int startByteIndex){
 		// Setup header for the data packet
 		int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
@@ -256,12 +256,12 @@ public class RTPClient {
 		header.setWindow(data_length);
 		header.setFlags(false, false, false, false); 
 		header.setChecksum(PRECHECKSUM);
-		
+
 		header.setWindow(data_length);
 		if (bytesRemaining <= DATA_SIZE) {
 			header.setFlags(false, false, false, true);
 		}
-		
+
 		byte [] headerBytes = header.getHeaderBytes();
 		byte [] data = new byte [DATA_SIZE];
 		byte [] packetBytes = new byte [PACKET_SIZE];
@@ -269,9 +269,9 @@ public class RTPClient {
 		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
 		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
 		System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data_length);
-		
+
 		header.setHashCode(CheckSum.getHashCode(data));
-		
+
 		DatagramPacket dataPacket = new DatagramPacket(packetBytes, packetBytes.length, serverIpAddress, serverPort);
 		return dataPacket;
 	}
@@ -285,11 +285,76 @@ public class RTPClient {
 	}
 
 
-	public void startDownload(){
+	public boolean startDownload(String fileName){
+		//Send packet over requesting from server to download it
+		byte[] receiveMessage = new byte[PACKET_SIZE];
+		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
+
+		// Setup Initializing Header
+		RTPPacketHeader dlHeader = new RTPPacketHeader();
+		dlHeader.setSource(clientPort);
+		dlHeader.setDestination(serverPort);
+		dlHeader.setSeqNum(seqNum);
+		dlHeader.setAckNum(ackNum);
+		dlHeader.setFlags(true, true, false, false); //setting LIVE flag on
+		dlHeader.setChecksum(PRECHECKSUM);
+		byte [] headerBytes = dlHeader.getHeaderBytes();
+		byte [] data = fileName.getBytes();
+		byte [] combinedData = RTPTools.combineHeaderData(headerBytes, data);
+		
+
+		DatagramPacket dlPacket = new DatagramPacket(combinedData, combinedData.length, serverIpAddress, serverPort);
+
+		int tries = 0;
+		boolean finishedDownloading=false;
+		
+		while (!finishedDownloading)
+		{
+			try
+			{
+				clientSocket.send(dlPacket);
+				clientSocket.receive(receivePacket);
+
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				if (!isValidPacketHeader(receiveHeader))
+				{
+					System.out.println("CORRUPTED in " + state);
+					continue;
+				}
+
+				// Assuming valid and Acknowledged
+				if (receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				{
+					System.out.println("ACK Received for download");
+					dlPacket = handShakeLiveAck(receivePacket);
+				}
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Timeout, resend");
+				if (tries++ >= 5)
+				{
+					System.out.println("Unsuccessful Connection");
+					return false;
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				return false;
+			}
+
+		}
+		System.out.println("exit setup()");
+		
+
+		
+		return true;
 
 	}
 
 	public void stopDownload(){
+		
+		
 
 	}
 
@@ -423,7 +488,7 @@ public class RTPClient {
 
 		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
 	}
-	
+
 	private boolean isValidPacketHeader(RTPPacketHeader header)
 	{
 		int headerChecksum = CheckSum.getChecksum(header.getChecksum());
