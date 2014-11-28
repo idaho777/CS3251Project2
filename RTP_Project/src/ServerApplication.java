@@ -46,7 +46,6 @@ public class ServerApplication {
 					netEmuPort = Short.parseShort(args[3]);
 
 					System.out.println("Initializing RTP Server...");
-					//server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
 					server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
 					server.openSession();
 
@@ -79,9 +78,7 @@ public class ServerApplication {
 					try{
 						int windowSize = Integer.parseInt(split[1]);
 						server.setWindowSize(windowSize);
-						System.out.println("I am windowing " + windowSize);
 					}catch(NumberFormatException e){
-						//
 						System.err.println("Enter a valid window size.");
 					}
 				}
@@ -129,33 +126,4 @@ public class ServerApplication {
 		}
 		return file;
 	}
-
-	/*public byte[] getFile(String path){
-		byte [] data= null;
-		File file = new File(path);
-		try{
-			FileInputStream fin = new FileInputStream(file);
-			data= new byte[(int)file.length()];
-			fin.read(data);
-		}catch(FileNotFoundException e){
-			System.err.println("File not found");
-		}catch (IOException e){
-			System.err.println("File could not be read");
-		}
-
-		return data;
-	}
-
-	public void dataToTextFile(byte [] data, String path){
-		try {
-			FileOutputStream stream= new FileOutputStream(path);
-			stream.write(data);
-			stream.close();
-		} catch (FileNotFoundException e) {
-			System.err.println("File not found");
-			e.printStackTrace();
-		} catch (IOException e) {
-			System.err.println("File could not be written");
-		}
-	}*/
 }
