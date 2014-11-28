@@ -69,7 +69,7 @@ public class RTPClient {
 	 * performs handshake
 	 * @throws IOException 
 	 */
-	public void setup()
+	public boolean setup()
 	{
 		// setup socket
 		System.out.println(clientPort + " " + clientIpAddress);
@@ -109,10 +109,11 @@ public class RTPClient {
 
 		int tries = 0;
 		state = ClientState.LIVE_SENT;
-		while (state != ClientState.SERVER_ACK_SENT)
+		while (state != ClientState.ESTABLISHED)
 		{
 			try
 			{
+				System.out.println("Going to send packet");
 				clientSocket.send(setupPacket);
 				System.out.println("Send Packet");
 				clientSocket.receive(receivePacket);
@@ -137,6 +138,7 @@ public class RTPClient {
 					System.out.println("GET LIVE ACK");
 					handShakeLiveLast(receivePacket);
 				}
+				System.out.println("END OF LOOP");
 			}
 			catch (SocketTimeoutException s)
 			{
@@ -144,53 +146,17 @@ public class RTPClient {
 				if (tries++ >= 5)
 				{
 					System.out.println("Unsuccessful Connection");
-					return;
+					return false;
 				}
 			}
 			catch (IOException e) {
 				e.printStackTrace();
+				return false;
 			}
 			
 		}
-
-
-
-		// Second Handshake
-		tries = 0;
-		while (state != ClientState.ESTABLISHED)
-		{
-			try
-			{
-				clientSocket.send(setupPacket);
-				clientSocket.receive(receivePacket);
-
-				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-
-				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
-				{
-					continue;
-				}
-				// Assuming 
-				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
-				{
-					handShakeLiveLast(receivePacket);
-				}
-			}
-			catch (SocketTimeoutException s)
-			{
-				System.out.println("Timeout, resend");
-				if (tries++ >= 5)
-				{
-					System.out.println("Unsuccessful Connection");
-					return;
-				}
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-
 		System.out.println("exit setup()");
+		return true;
 	}
 
 	private DatagramPacket handShakeLiveAck(DatagramPacket receivePacket) throws IOException
@@ -214,6 +180,7 @@ public class RTPClient {
 					serverIpAddress,
 					serverPort
 				);
+		System.out.println("SENDING SHAKE 2");
 		return ackPacket;
 	}
 

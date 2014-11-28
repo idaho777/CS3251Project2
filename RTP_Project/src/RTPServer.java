@@ -69,10 +69,7 @@ public class RTPServer {
 		this.serverPort = serverPort;
 		this.clientPort = clientPort;
 		try {
-
 			this.serverIpAddress = InetAddress.getLocalHost();
-
-//			this.clientIpAddress = InetAddress.getLocalHost();
 			this.clientIpAddress = InetAddress.getByName(clientIpAddress);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
