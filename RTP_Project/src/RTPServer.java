@@ -115,6 +115,7 @@ public class RTPServer {
 				if (!isValidPacketHeader(receiveHeader))
 				{
 					resendPacket(receivePacket);
+					System.out.println("resending packet");
 					continue;
 				}
 				
@@ -122,7 +123,6 @@ public class RTPServer {
 				// ==== Packet is valid
 				if (!receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck())
 				{
-					System.out.println("I have received a data packet");
 					receiveDataPacket(receivePacket);
 					if (receiveHeader.isLast())
 					{
@@ -194,8 +194,13 @@ public class RTPServer {
 		liveAckHeader.setSource(serverPort);
 		liveAckHeader.setDestination(clientPort);
 		liveAckHeader.setChecksum(PRECHECKSUM);
+		if (receiveHeader.getAckNum() == (seqNum + 1) % MAX_SEQ_NUM)
+		{
+			seqNum = receiveHeader.getAckNum();
+			ackNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;
+		}
 		liveAckHeader.setSeqNum(seqNum);
-		liveAckHeader.setAckNum(0);
+		liveAckHeader.setAckNum(ackNum);
 		liveAckHeader.setFlags(true, false, true, false);	// live, !die, !ack, !last
 
 		state = ServerState.LIVE_RCVD;
@@ -257,8 +262,11 @@ public class RTPServer {
 		dataAckHeader.setSource(serverPort);
 		dataAckHeader.setDestination(clientPort);
 		dataAckHeader.setChecksum(PRECHECKSUM);
-		dataAckHeader.setSeqNum(0);
-		dataAckHeader.setAckNum(0);
+
+		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+		ackNum = (ackNum + 1) % MAX_SEQ_NUM;
+		dataAckHeader.setSeqNum(seqNum);
+		dataAckHeader.setAckNum(ackNum);
 		dataAckHeader.setFlags(false, false, true, false);	// ACK
 		
 		if (receiveHeader.isLast())
