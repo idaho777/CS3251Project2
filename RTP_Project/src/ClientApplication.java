@@ -39,7 +39,6 @@ public class ClientApplication {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		Pattern ipPattern  = Pattern.compile(IPADDRESS_PATTERN);
 		boolean connected = false;
 		boolean downloaded = false;
 

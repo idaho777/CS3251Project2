@@ -19,14 +19,6 @@ public class CheckSum {
 		return checksumVal;	
 	}
 	
-	public static int getChecksumInt(byte [] data){
-		Adler32 checksum = new Adler32();
-		checksum.update(data, 0, data.length);
-		long checksumVal = checksum.getValue();
-		return (int)checksumVal;	
-	}
-
-	
 	public static int getHashCode(byte [] data){
 		return (int) getChecksum(data);
 	}

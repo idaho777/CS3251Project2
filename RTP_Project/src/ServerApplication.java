@@ -73,7 +73,7 @@ public class ServerApplication {
 			//terminate
 			input = server.openSession();
 			System.out.println("Timeout");
-//			
+			
 //			Scanner scan = new Scanner(System.in);
 
 			String cmd = null;
@@ -95,7 +95,7 @@ public class ServerApplication {
 				}
 			}else if(cmd.equalsIgnoreCase("terminate")){
 				System.out.println("Terminating...");
-				scan.close();
+//				scan.close();
 				break;
 			}else{
 				System.err.println("Invalid command.");

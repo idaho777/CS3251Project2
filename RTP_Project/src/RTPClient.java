@@ -66,7 +66,6 @@ public class RTPClient {
 		}
 		rand = new Random();
 		seqNum = rand.nextInt(MAX_SEQ_NUM);
-		//		seqNum = 10;
 		state = ClientState.CLOSED;
 	}
 
@@ -96,9 +95,13 @@ public class RTPClient {
 		liveHeader.setAckNum(ackNum);
 		liveHeader.setFlags(true, false, false, false, false); //setting LIVE flag on
 		liveHeader.setChecksum(PRECHECKSUM);
+		liveHeader.setWindow(DATA_SIZE);
+		byte [] data = new byte[DATA_SIZE];
+		liveHeader.setHashCode(CheckSum.getHashCode(data));
 		byte [] headerBytes = liveHeader.getHeaderBytes();
-
-		DatagramPacket setupPacket = new DatagramPacket(headerBytes, HEADER_SIZE, serverIpAddress, serverPort);
+		byte [] packet = RTPTools.combineHeaderData(headerBytes, data);
+		
+		DatagramPacket setupPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
 		// Sending LIVE packet and receiving ACK
 
@@ -120,22 +123,24 @@ public class RTPClient {
 				clientSocket.send(setupPacket);
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-				
-				if (!RTPTools.isValidPacketHeader(receiveHeader))	//Corrupted
+				if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
 				{
+					System.out.println("RECEIVED");
 					continue;
 				}
 
 				// Assuming valid and Acknowledged
 				if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast())
 				{
+					System.out.println("ACKED");
 					setupPacket = handShakeLiveAck(receivePacket);
 				}
-
-				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
+				else if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isLast())
 				{
+					System.out.println("FK DONE");
 					handShakeLiveLast(receivePacket);
 				}
+				System.out.println("NONE");
 			}
 			catch (SocketTimeoutException s)
 			{
@@ -164,14 +169,19 @@ public class RTPClient {
 		ackHeader.setSeqNum(seqNum);
 		ackHeader.setAckNum(0);
 		ackHeader.setFlags(true, false, false, false, true); // Live and last
+		ackHeader.setWindow(DATA_SIZE);
+		byte[] sendData = new byte[DATA_SIZE];
+		ackHeader.setHashCode(CheckSum.getHashCode(sendData));
+		byte[] liveAckHeaderBytes = ackHeader.getHeaderBytes();
+		byte[] packet = RTPTools.combineHeaderData(liveAckHeaderBytes, sendData);
 
 		state = ClientState.SERVER_ACK_SENT;
 
 		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
 		DatagramPacket ackPacket = new DatagramPacket
 				(
-					ackHeaderBytes,
-					HEADER_SIZE,
+					packet,
+					PACKET_SIZE,
 					serverIpAddress,
 					serverPort
 				);
@@ -202,27 +212,28 @@ public class RTPClient {
 		nameHeader.setAckNum(0);
 		nameHeader.setFlags(false, false, false, true, false); // LIVE FIRST
 		nameHeader.setWindow(name.length);
-
-		byte[] data = RTPTools.combineHeaderData(nameHeader.getHeaderBytes(), name);
-		DatagramPacket sendingPacket = new DatagramPacket(data, DATA_SIZE, serverIpAddress, serverPort);
+		byte[] sendData = name;
+		nameHeader.setHashCode(CheckSum.getHashCode(sendData));
+		byte[] liveAckHeaderBytes = nameHeader.getHeaderBytes();
+		byte[] packet = RTPTools.combineHeaderData(liveAckHeaderBytes, sendData);
+		
+		
+		DatagramPacket sendingPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
 		
 		while (true)
 		{
 			try {
 				clientSocket.send(sendingPacket);
-				System.out.println("Send");
 				clientSocket.receive(receivePacket);
-				System.out.println("Received");
 				
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				
-				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
-					System.out.println("NOPE");
 					continue;
 				}
-				if (receiveHeader.isAck() && receiveHeader.isFirst())
+				if (receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isLive() && !receiveHeader.isLast() && !receiveHeader.isDie())
 				{
 					break;
 				}
@@ -251,13 +262,9 @@ public class RTPClient {
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 
-//				if (!isValidPacketHeader(receivePacket))
-//				{
-//					System.out.println("Not valid packet hashcode");
-//					continue;
-//				}
 				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
+//					System.out.println("Is not valid");
 					continue;
 				}
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
@@ -267,7 +274,7 @@ public class RTPClient {
 					ackNum = receiveHeader.getSeqNum();
 					sendingPacket = createPacket(++currPacket);
 				}
-				else if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
+				else if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast() && !receiveHeader.isFirst())
 				{
 					seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 					ackNum = receiveHeader.getSeqNum();
@@ -281,6 +288,8 @@ public class RTPClient {
 			}
 
 		}
+		System.out.println("OUTSIDE LOOP");
+		System.exit(0);
 	}
 
 	public DatagramPacket createPacket(int startByteIndex){
@@ -297,21 +306,23 @@ public class RTPClient {
 		header.setFlags(false, false, false, false, false); 
 		header.setChecksum(PRECHECKSUM);
 		header.setWindow(data_length);
-		
 		if (bytesRemaining <= DATA_SIZE) { // last packet
 			header.setFlags(false, false, false, false, true);
 		}
-
-		byte [] headerBytes = header.getHeaderBytes();
-		byte [] data = new byte [DATA_SIZE];
-		byte [] packetBytes = new byte [PACKET_SIZE];
-		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
-		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
-		System.arraycopy(fileData, startByteIndex * DATA_SIZE, packetBytes, HEADER_SIZE, data_length);
-
+		byte [] data = new byte [data_length];
+		System.arraycopy(fileData, startByteIndex * DATA_SIZE, data, 0, data_length);
 		header.setHashCode(CheckSum.getHashCode(data));
+		
+		byte [] headerBytes = header.getHeaderBytes();
+		byte [] packetBytes = RTPTools.combineHeaderData(headerBytes, data);
 
-		DatagramPacket dataPacket = new DatagramPacket(packetBytes, packetBytes.length, serverIpAddress, serverPort);
+		DatagramPacket dataPacket = new DatagramPacket
+				(
+					packetBytes,
+					PACKET_SIZE,
+					serverIpAddress,
+					serverPort
+				);
 		return dataPacket;
 	}
 
@@ -338,8 +349,10 @@ public class RTPClient {
 		dlHeader.setFlags(true, true, false, true, false); // LIVE DIE FIRST
 		dlHeader.setChecksum(PRECHECKSUM);
 		dlHeader.setWindow(fileName.getBytes().length);
-		byte [] headerBytes = dlHeader.getHeaderBytes();
 		byte [] data = fileName.getBytes();
+		
+		dlHeader.setChecksum(CheckSum.getHashCode(data));
+		byte [] headerBytes = dlHeader.getHeaderBytes();
 		byte [] sendPacket = RTPTools.combineHeaderData(headerBytes, data);
 
 		DatagramPacket dlPacket = new DatagramPacket(sendPacket, sendPacket.length, serverIpAddress, serverPort);

@@ -64,20 +64,19 @@ public class RTPTools {
 		int headerChecksum = header.getChecksum();
 		int hashCode = header.getHashCode();
 		byte [] data = extractData(packet);
-		boolean hashCodes = (hashCode==CheckSum.getChecksumInt(data));
-
-		return (headerChecksum == PRECHECKSUM) && (hashCodes);
+		boolean hashCodes = (hashCode==CheckSum.getHashCode(data));
+//		System.out.println(hashCode + " " + CheckSum.getHashCode(data));
+		return (CheckSum.getChecksum(headerChecksum) == CHECKSUM) && (hashCodes);
 	}
 
 	public static boolean isValidPacketHeader(RTPPacketHeader header)
 	{
 		int headerChecksum = header.getChecksum();
-		return (headerChecksum == CHECKSUM) ;
+		return (CheckSum.getChecksum(headerChecksum) == CHECKSUM) ;
 		
 		//check for hashCode
 		
 	}
-	
 
 	public static RTPPacketHeader getHeader(DatagramPacket receivePacket)
 	{
