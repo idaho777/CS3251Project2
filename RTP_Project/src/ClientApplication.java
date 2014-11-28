@@ -84,7 +84,7 @@ public class ClientApplication {
 					}
 					break;
 				}
-				case "get":{
+				case "post":{
 					if(split.length>1){
 						String pathName = split[1];
 						//						client.startUpload(getFileBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt"));
@@ -105,7 +105,7 @@ public class ClientApplication {
 					}
 					break;
 				}
-				case "post":{
+				case "get":{
 					if(split.length>1){
 						String pathName = split[1];
 						long start = System.nanoTime(); 
