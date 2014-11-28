@@ -6,9 +6,6 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.NoSuchElementException;
-import java.util.Scanner;
-import java.util.Timer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,61 +65,75 @@ public class ServerApplication {
 			System.err.println("fta-server must be run as first command in the format of fta-server X A P");
 			System.exit(1);
 		}
+		server.openSession();
+		long end=System.currentTimeMillis();
+	    InputStreamReader fileInputStream=new InputStreamReader(System.in);
+	    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
+	    try
+	    {
+	    	String s = "";
 
-		String input;
-		boolean terminate = false;
-		String cmd = null;
-		while(true){
-			
-//		    InputStreamReader fileInputStream=new InputStreamReader(System.in);
-//		    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
-//		    try
-//		    {
-			while (!terminate)
-			{
-				input = server.openSession();
-				
-			}
-//		    	while(cmd == null)
-//		    	{
-//		    	    if (bufferedReader.ready())
-//		    	        cmd = bufferedReader.readLine();
-//		    	}
-//		    	System.out.println("hahahaha");
-//		    }
-//		    catch(java.io.IOException e)
-//		    {
-//		        e.printStackTrace();
-//		    }
-			//window w 
-			//terminate
-			System.out.println("Timeout");
-			
-//			Scanner scan = new Scanner(System.in);
+	    	while((System.currentTimeMillis()>=end))
+	    	{
+	    	    if (bufferedReader.ready())
+	    	    	 s += bufferedReader.readLine();
+	    	    
+	    	    //System.out.println(s);
+	    	    
+	    	    if(s.equalsIgnoreCase("terminate")){
+	    	    	server.close();
+	    	    	s = "";
+	    	    	System.out.println("Server is terminating...");
+	    	    }else{
+	    	    	System.err.println("Invalid command");
+	    	    }
+	    	}
 
-//				 cmd = scan.nextLine().toLowerCase();
-			
-			String [] split = cmd.split("\\s+");
-			if(split.length>0 && !cmd.equals("terminate")){
-				if(split.length>1 && split[0].equalsIgnoreCase("window")){
-					try{
-						int windowSize = Integer.parseInt(split[1]);
-						server.setWindowSize(windowSize);
-					}catch(NumberFormatException e){
-						System.err.println("Enter a valid window size.");
-					}
-				}
-			}else if(cmd.equalsIgnoreCase("terminate")){
-				System.out.println("Terminating...");
-//				scan.close();
-				break;
-			}else{
-				System.err.println("Invalid command.");
-				System.exit(1);
-			}
-		}
-		System.out.println("Shutdown successful");
-		System.exit(0);
+	    	bufferedReader.close();
+	    }
+	    catch(java.io.IOException e)
+	    {
+	    	System.err.println("Server could not be shut down");
+	        e.printStackTrace();
+	    }
+//		input
+//		String input;
+//		while(true){
+//			//window w 
+//			//terminate
+//			input = server.openSession();
+//			System.out.println("Timeout");
+//			
+////			Scanner scan = new Scanner(System.in);
+//
+//			String cmd = null;
+////				 cmd = scan.nextLine().toLowerCase();
+//			
+//			if (cmd == null)
+//			{
+//				continue;
+//			}
+//			String [] split = cmd.split("\\s+");
+//			if(split.length>0 && !cmd.equals("terminate")){
+//				if(split.length>1 && split[0].equalsIgnoreCase("window")){
+//					try{
+//						int windowSize = Integer.parseInt(split[1]);
+//						server.setWindowSize(windowSize);
+//					}catch(NumberFormatException e){
+//						System.err.println("Enter a valid window size.");
+//					}
+//				}
+//			}else if(cmd.equalsIgnoreCase("terminate")){
+//				System.out.println("Terminating...");
+////				scan.close();
+//				break;
+//			}else{
+//				System.err.println("Invalid command.");
+//				System.exit(1);
+//			}
+//		}
+//		System.out.println("Shutdown successful");
+//		System.exit(0);
 
 	}
 	public static byte [] getFileBytes(String pathName){
