@@ -195,6 +195,7 @@ public class RTPClient {
 			seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 			state = ClientState.ESTABLISHED;
 		}
+		System.out.println(seqNum + " ack num : " + ackNum);
 	}
 
 	/**
@@ -212,23 +213,29 @@ public class RTPClient {
 		{
 			sendingPacket = createPacket(currPacket);
 			try {
-				System.out.println(getHeader(sendingPacket).getSeqNum() + " ack num : " + getHeader(sendingPacket).getAckNum());
+				System.out.println(seqNum + " ack num : " + ackNum);
 				clientSocket.send(sendingPacket);
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
-				if (!isValidPacketHeader(receivePacket))
+//				if (!isValidPacketHeader(receivePacket))
+//				{
+//					System.out.println("Not valid packet hashcode");
+//					continue;
+//				}
+				if (!isValidPacketHeader(receiveHeader))
 				{
+					System.out.println("Not valid packet header");
 					continue;
 				}
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
+					System.out.println("is not live");
 					seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 					ackNum = receiveHeader.getSeqNum();
 					sendingPacket = createPacket(++currPacket);
 				}
-
-				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
+				else if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && receiveHeader.isLast())
 				{
 					seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 					ackNum = receiveHeader.getSeqNum();

@@ -111,7 +111,7 @@ public class RTPServer {
 				// Get Header of Packet and 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
-				System.out.println("received    " + receiveHeader.getSeqNum() + "   " + receiveHeader.getAckNum());
+				System.out.println(seqNum + " " + ackNum);
 				// Checksum validation
 				if (!isValidPacketHeader(receiveHeader))
 				{
@@ -124,14 +124,15 @@ public class RTPServer {
 				// ==== Packet is valid
 				if (!receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck())
 				{
-					if (receiveHeader.getAckNum() != (seqNum + 1) % MAX_SEQ_NUM)
+					if (receiveHeader.getSeqNum() == ackNum)
 					{
-						System.out.println("resending valid packet " + seqNum + " Ack Num: " + ackNum);
+						System.out.println("resending valid packet");
 						resendPacket(receivePacket, true);
 					}
 					else
 					{
 						receiveDataPacket(receivePacket);
+						System.out.println("resending response packet");
 						if (receiveHeader.isLast())
 						{
 							System.out.println("assembling file");
@@ -148,6 +149,7 @@ public class RTPServer {
 				{
 					System.out.println("HAND SHAKE TWO");
 					handShakeTwo(receivePacket);
+					System.out.println(seqNum + " ack num : " + ackNum);
 				}
 				else if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
@@ -170,17 +172,34 @@ public class RTPServer {
 	private void resendPacket(DatagramPacket receivePacket, boolean wasAcked) throws IOException
 	{
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		
+		RTPPacketHeader resendHeader = new RTPPacketHeader();
+		resendHeader.setSource(serverPort);
+		resendHeader.setDestination(clientPort);
+		resendHeader.setChecksum(PRECHECKSUM);
+		
 		if (wasAcked)
 		{
-			receiveHeader.setAckNum(ackNum);
+			resendHeader.setFlags
+			(
+				false,
+				false,
+				true,
+				false
+			);
+			receiveHeader.setSeqNum(seqNum);
+			receiveHeader.setAckNum(ackNum + 1);
 		}
-		receiveHeader.setFlags
+		else
+		{
+			resendHeader.setFlags
 			(
 				receiveHeader.isLive(),
 				receiveHeader.isDie(),
 				false,
 				receiveHeader.isLast()
 			);
+		}
 		
 		byte[] resendHeaderBytes = receiveHeader.getHeaderBytes();
 	
@@ -192,7 +211,7 @@ public class RTPServer {
 					clientPort
 				);
 		
-		serverSocket.send(receivePacket);
+		serverSocket.send(sendPacket);
 	}
 	
 	private void handShakeOne(DatagramPacket receivePacket) throws IOException
