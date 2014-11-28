@@ -39,6 +39,7 @@ public class RTPClient {
 	private String pathName="";
 	private byte [] fileData;
 	private boolean timedTaskRun= false;
+	private ArrayList<byte[]> bytesReceived;
 
 	public RTPClient() {
 		this.clientPort=3251;
@@ -70,7 +71,7 @@ public class RTPClient {
 	/**
 	 * performs handshake
 	 * @throws IOException 
-	 */
+	 */	
 	public boolean setup()
 	{
 		// setup socket
@@ -295,20 +296,19 @@ public class RTPClient {
 		dlHeader.setSource(clientPort);
 		dlHeader.setDestination(serverPort);
 		dlHeader.setSeqNum(seqNum);
-		dlHeader.setAckNum(ackNum);
+		dlHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM); //???
 		dlHeader.setFlags(true, true, false, false); //setting LIVE flag on
 		dlHeader.setChecksum(PRECHECKSUM);
 		byte [] headerBytes = dlHeader.getHeaderBytes();
 		byte [] data = fileName.getBytes();
 		byte [] combinedData = RTPTools.combineHeaderData(headerBytes, data);
-		
 
 		DatagramPacket dlPacket = new DatagramPacket(combinedData, combinedData.length, serverIpAddress, serverPort);
 
 		int tries = 0;
 		boolean finishedDownloading=false;
-		
-		while (!finishedDownloading)
+		boolean canStart=false;
+		while (!canStart)
 		{
 			try
 			{
@@ -321,12 +321,11 @@ public class RTPClient {
 					System.out.println("CORRUPTED in " + state);
 					continue;
 				}
-
 				// Assuming valid and Acknowledged
 				if (receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					System.out.println("ACK Received for download");
-					dlPacket = handShakeLiveAck(receivePacket);
+					System.out.println("ACK Received to start download");
+					canStart=true;
 				}
 			}
 			catch (SocketTimeoutException s)
@@ -334,7 +333,7 @@ public class RTPClient {
 				System.out.println("Timeout, resend");
 				if (tries++ >= 5)
 				{
-					System.out.println("Unsuccessful Connection");
+					System.out.println("Download could not be started");
 					return false;
 				}
 			}
@@ -344,9 +343,46 @@ public class RTPClient {
 			}
 
 		}
-		System.out.println("exit setup()");
 		
+		while(!finishedDownloading){
+			try
+			{
+				clientSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				if (receiveHeader.getAckNum() != (seqNum + 1) % MAX_SEQ_NUM)
+				{
+					System.out.println("resending valid packet " + seqNum + " Ack Num: " + ackNum);
+					resendPacket(receivePacket);
+				}
+				else
+				{
+					receiveDataPacket(receivePacket);
+					if (receiveHeader.isLast())
+					{
+						System.out.println("assembling file");
+						assembleFile();
+						finishedDownloading=true;
+					}	
+				}
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Timeout, resend");
+				if (tries++ >= 5)
+				{
+					System.out.println("Download could not be completed");
+					return false;
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				return false;
+			}
 
+			
+			
+		}
+		System.out.println("Finishes downloading");
 		
 		return true;
 
@@ -449,7 +485,44 @@ public class RTPClient {
 
 		System.out.println("exit teardown");
 	}
+	
+	private void receiveDataPacket(DatagramPacket receivePacket) throws IOException
+	{
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		
+		// extracts and adds data to ArrayList of byte[]s
+		byte[] data = RTPTools.extractData(receivePacket);
 
+		bytesReceived.add(data);
+		
+		RTPPacketHeader dataAckHeader = new RTPPacketHeader();
+		dataAckHeader.setSource(clientPort);
+		dataAckHeader.setDestination(serverPort);
+		dataAckHeader.setChecksum(PRECHECKSUM);
+
+		ackNum = receiveHeader.getSeqNum();
+		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+		dataAckHeader.setSeqNum(seqNum);
+		dataAckHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+		dataAckHeader.setFlags(false, false, true, false);	// ACK
+		
+		if (receiveHeader.isLast())
+		{
+			dataAckHeader.setFlags(false, false, true, true); // ACK LAST
+		}
+		
+		byte[] dlAckHeaderBytes = dataAckHeader.getHeaderBytes();
+
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					dlAckHeaderBytes,
+					dlAckHeaderBytes.length,
+					serverIpAddress,
+					serverPort
+				);
+		clientSocket.send(sendPacket);
+	}
+	
 	/**
 	 * This method takes a packet and creates it for the last 
 	 * ACK packet sent in the 4-way handshake in the connection teardown
@@ -512,6 +585,55 @@ public class RTPClient {
 
 	public void setWindowSize(int window){
 		this.windowSize=window;
+	}
+	
+	private void resendPacket(DatagramPacket receivePacket) throws IOException
+	{
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		receiveHeader.isAck();
+		receiveHeader.setFlags
+			(
+				receiveHeader.isLive(),
+				receiveHeader.isDie(),
+				false,
+				receiveHeader.isLast()
+			);
+		
+		byte[] resendHeaderBytes = receiveHeader.getHeaderBytes();
+	
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					resendHeaderBytes,
+					resendHeaderBytes.length,
+					serverIpAddress,
+					serverPort
+				);
+		
+		clientSocket.send(sendPacket);
+	}
+	
+	private void assembleFile()
+	{
+		int bufferLength = bytesReceived.size();
+		int lastByteArrayLength = bytesReceived.get(bufferLength - 1).length;	// Length of last data
+		int fileSize = (bufferLength - 1) * DATA_SIZE + lastByteArrayLength;	// number of bytes in file
+		
+		fileData = new byte[fileSize];
+		for (int i = 0; i < bufferLength - 1; i++)
+		{
+			System.arraycopy(bytesReceived.get(i), 0, fileData, i * DATA_SIZE, DATA_SIZE);
+		}
+		
+		// Copy last data
+		System.arraycopy(bytesReceived.get(bufferLength - 1), 0, fileData, (bufferLength - 1) * DATA_SIZE, lastByteArrayLength);
+
+		// I RUN LINUX
+		//getFileFromBytes("/home/joonho/Desktop/goodbye.txt", fileData);
+//		getFileFromBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt", fileData);
+		
+		//clearing out byte received buffer and file data for next uploads
+		fileData = null;
+		bytesReceived = new ArrayList<byte []> ();
 	}
 
 	/**
