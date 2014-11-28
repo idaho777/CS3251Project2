@@ -45,6 +45,8 @@ public class CheckSum {
 		int actualHash = header.getHashCode();
 		header.setHashCode(0);
 		packet = RTPTools.setHeader(packet, header);
+		System.out.println(getHashCode(packet) + " " + actualHash);
+		System.out.println(getHashCode(packet));
 		return (getHashCode(packet)==actualHash);
 	}
 }

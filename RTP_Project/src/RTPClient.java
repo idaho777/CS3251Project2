@@ -218,17 +218,18 @@ public class RTPClient {
 				clientSocket.send(sendingPacket);
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
+				System.out.println("received " + receiveHeader.getSeqNum() + "  " + receiveHeader.getAckNum());
 
-//				if (!isValidPacketHeader(receivePacket))
-//				{
-//					System.out.println("Not valid packet hashcode");
-//					continue;
-//				}
-				if (!isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receivePacket))
 				{
-					System.out.println("Not valid packet header");
+					System.out.println("Not valid packet hashcode");
 					continue;
 				}
+//				if (!isValidPacketHeader(receiveHeader))
+//				{
+//					System.out.println("Not valid packet header");
+//					continue;
+//				}
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
 					System.out.println("is not live");
@@ -242,6 +243,10 @@ public class RTPClient {
 					ackNum = receiveHeader.getSeqNum();
 					currPacket++;
 					System.out.println("I have received the last ack!");
+				}
+				else
+				{
+					System.out.println("SKIP EVERYTHING");
 				}
 			} catch (SocketTimeoutException s) {
 				System.out.println("Timeout, resend");

@@ -172,7 +172,6 @@ public class RTPServer {
 	private void resendPacket(DatagramPacket receivePacket, boolean wasAcked) throws IOException
 	{
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
-		
 		RTPPacketHeader resendHeader = new RTPPacketHeader();
 		resendHeader.setSource(serverPort);
 		resendHeader.setDestination(clientPort);
@@ -185,10 +184,10 @@ public class RTPServer {
 				false,
 				false,
 				true,
-				false
+				receiveHeader.isLast()
 			);
-			receiveHeader.setSeqNum(seqNum);
-			receiveHeader.setAckNum(ackNum + 1);
+			resendHeader.setSeqNum(seqNum);
+			resendHeader.setAckNum(ackNum + 1);
 		}
 		else
 		{
@@ -201,7 +200,7 @@ public class RTPServer {
 			);
 		}
 		
-		byte[] resendHeaderBytes = receiveHeader.getHeaderBytes();
+		byte[] resendHeaderBytes = resendHeader.getHeaderBytes();
 	
 		DatagramPacket sendPacket = new DatagramPacket
 				(
