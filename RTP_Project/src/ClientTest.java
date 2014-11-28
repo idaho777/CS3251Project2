@@ -11,8 +11,24 @@ public class ClientTest
 {
 	public static void main(String[] args)
 	{
+		RTPPacketHeader ackHeader = new RTPPacketHeader();
+		ackHeader.setSource(11234);
+		ackHeader.setDestination(456);
+		ackHeader.setChecksum(90);
+		ackHeader.setSeqNum(134123413);
+		ackHeader.setAckNum(0);
+		byte[] data = ackHeader.getHeaderBytes();
 		
-		System.out.println(0xFFF0001 % 0xFFFF);
+		byte[] bytes = new byte[50];
+		System.arraycopy(data, 0, bytes, 0, 20);
+		bytes[0] = 1;
+		DatagramPacket packet = new DatagramPacket(bytes, 50);
+		DatagramPacket packet2 = new DatagramPacket(bytes, 50);
+		int hash = CheckSum.getHashCode(new DatagramPacket(bytes, 50));
+		int hash2 = CheckSum.getHashCode(new DatagramPacket(bytes, 50));
+		System.out.println(CheckSum.getChecksum(bytes));
+		System.out.println(bytes.hashCode());
+		
 //		System.out.println("===Initialize client");
 //		RTPClient client = new RTPClient();
 ////		System.out.println("===Setup Client");

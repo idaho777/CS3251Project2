@@ -20,13 +20,14 @@ public class RTPTools {
 	private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
 
 
-	
-	private boolean isValidPacketHeader(DatagramPacket packet)
-	{
-		int headerChecksum = CheckSum.getChecksum(getHeader(packet).getChecksum());
-		CheckSum.isHashcodeValid(packet);
+	public static byte [] combineHeaderData(byte [] headerBytes, byte [] data){
 
-		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
+		byte [] packetBytes = new byte [PACKET_SIZE];
+		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
+		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
+		System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data.length);
+
+		return packetBytes;
 	}
 	
 	public static byte[] extractData(DatagramPacket receivePacket)
@@ -42,11 +43,29 @@ public class RTPTools {
 		return extractedData;
 	}
 	
+	
+
+	public static boolean isValidPacketHeader(DatagramPacket packet)
+	{
+		int headerChecksum = CheckSum.getChecksum(getHeader(packet).getChecksum());
+
+		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
+	}
+
+	public static boolean isValidPacketHeader(RTPPacketHeader header)
+	{
+		int headerChecksum = CheckSum.getChecksum(header.getChecksum());
+
+		return (headerChecksum == CHECKSUM) ;
+	}
+	
 
 	public static RTPPacketHeader getHeader(DatagramPacket receivePacket)
 	{
 		return new RTPPacketHeader(Arrays.copyOfRange(receivePacket.getData(), 0, 20));
 	}
+	
+	
 	
 	public static DatagramPacket setHeader(DatagramPacket packet, RTPPacketHeader header)
 	{
@@ -54,9 +73,9 @@ public class RTPTools {
 		byte [] packetData = packet.getData();
 		System.arraycopy(headerBytes, 0, packetData , 0, HEADER_SIZE);
 		packet.setData(packetData);
+		
 		return packet;
-	}
-	
+	}	
 
 	public static byte [] getFileBytes(String pathName){
 		Path path = Paths.get(pathName);
@@ -84,16 +103,5 @@ public class RTPTools {
 			e.printStackTrace();
 		}
 		return file;
-	}
-	
-	public static byte [] combineHeaderData(byte [] headerBytes, byte [] data){
-
-		byte [] packetBytes = new byte [PACKET_SIZE];
-		//bytesRemaining should be updated when we successfully get ACK back for successfully transfered packet
-		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);		// copying header
-		System.arraycopy(headerBytes, 0, packetBytes, 0, HEADER_SIZE);
-		System.arraycopy(data, 0, packetBytes, HEADER_SIZE, data.length);
-
-		return packetBytes;
 	}
 }

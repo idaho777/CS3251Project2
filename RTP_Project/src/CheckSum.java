@@ -18,15 +18,11 @@ public class CheckSum {
 		long checksumVal = checksum.getValue();
 		return checksumVal;	
 	}
-	
-	public static int getHashCode(DatagramPacket packet){
-		return (RTPTools.extractData(packet)).hashCode();
-	}
+
 	
 	public static int getHashCode(byte [] data){
-		return data.hashCode();
+		return (int) getChecksum(data);
 	}
-	
 	/**
 	 * Modified algorithm for our purposes
 	 * 
@@ -45,8 +41,6 @@ public class CheckSum {
 		int actualHash = header.getHashCode();
 		header.setHashCode(0);
 		packet = RTPTools.setHeader(packet, header);
-		System.out.println(getHashCode(packet) + " " + actualHash);
-		System.out.println(getHashCode(packet));
-		return (getHashCode(packet)==actualHash);
+		return (actualHash == getHashCode(packet.getData()));
 	}
 }

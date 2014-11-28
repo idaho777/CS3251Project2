@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
@@ -74,7 +75,6 @@ public class ClientApplication {
 			String [] split = cmd.split("\\s+");
 			byte [] fileData2 = null;
 			if(split.length>0 && !cmd.equals("disconnect")){
-				System.out.println(split[0]);
 				switch(split[0]){
 				case "connect":{ 
 					if(client.setup()){
@@ -86,14 +86,23 @@ public class ClientApplication {
 				}
 				case "post":{
 					if(split.length>1){
-						String pathName = split[1];
+						String fileName = split[1];
 						//						client.startUpload(getFileBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt"));
 						long start = System.nanoTime(); 
 
-						//client.startUpload(getFileBytes(pathName));
-						client.startUpload(getFileBytes("/home/joonho/Desktop/hello.txt")); //TODO change back to taking in pathname, not default file
+						String filePath = System.getProperty("user.dir") + "/" + fileName;
+						byte[] file = getFileBytes(filePath);
+						if (file != null)
+						{
+							client.sendName(fileName);
+							client.startUpload(getFileBytes(filePath));	
+						}
+						else
+						{
+							System.out.println("File does not exist");
+						}
 						long elapsedTime = System.nanoTime() - start;
-
+						System.out.println("done");
 						/*if(startUpload){
 							System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
 						}else{
@@ -172,6 +181,8 @@ public class ClientApplication {
 		byte[] data=null;
 		try {
 			data = Files.readAllBytes(path);
+		} catch (NoSuchFileException e1) {
+			return null;
 		} catch (IOException e) {
 			System.err.println("File could not be read");
 			e.printStackTrace();

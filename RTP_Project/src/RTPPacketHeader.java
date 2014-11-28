@@ -90,13 +90,14 @@ public class RTPPacketHeader {
 		return (int) (header[WIN] << 8 & 0xFF00 | header[WIN + 1] & 0x00FF);
 	}
 	
-	public void setFlags(boolean live, boolean die, boolean ack, boolean last)
+	public void setFlags(boolean live, boolean die, boolean ack, boolean fst, boolean last)
 	{
 		byte flag = 0;
 		if (live) flag |= (byte) (1 << 7);
 		if (die)  flag |= (byte) (1 << 6);
 		if (ack)  flag |= (byte) (1 << 5);
-		if (last) flag |= (byte) (1 << 4);
+		if (fst)  flag |= (byte) (1 << 4);
+		if (last) flag |= (byte) (1 << 3);
 		
 		header[FLAG] = flag;
 	}
@@ -116,17 +117,24 @@ public class RTPPacketHeader {
 		return ((header[FLAG] & 0b00100000) != 0);
 	}
 	
-	public boolean isLast()
+	public boolean isFirst()
 	{
 		return ((header[FLAG] & 0b00010000) != 0);
 	}
+	
+	public boolean isLast()
+	{
+		return ((header[FLAG] & 0b00001000) != 0);
+	}
+	
+	
 	
 	public void setChecksum(int checksum)
 	{
 		header[CHKSUM]		= (byte) ((checksum & 0xFF000000) >> 24);
 		header[CHKSUM + 1]  = (byte) ((checksum & 0x00FF0000) >> 16);
 		header[CHKSUM + 2]	= (byte) ((checksum & 0x0000FF00) >> 8);
-		header[CHKSUM + 3]	= (byte) (checksum & 0x000000FF);
+		header[CHKSUM + 3]	= (byte) (checksum  & 0x000000FF);
 	}
 	
 	public int getChecksum()
@@ -142,7 +150,7 @@ public class RTPPacketHeader {
 		header[HASHCODE]		= (byte) ((checksum & 0xFF000000) >> 24);
 		header[HASHCODE + 1]    = (byte) ((checksum & 0x00FF0000) >> 16);
 		header[HASHCODE + 2]	= (byte) ((checksum & 0x0000FF00) >> 8);
-		header[HASHCODE + 3]	= (byte) (checksum & 0x000000FF);
+		header[HASHCODE + 3]	= (byte) (checksum  & 0x000000FF);
 	}
 	
 	public int getHashCode()
@@ -150,7 +158,7 @@ public class RTPPacketHeader {
 		return (int) (header[HASHCODE] << 24 & 0xFF000000|
 				  header[HASHCODE + 1] << 16 & 0x00FF0000|
 				  header[HASHCODE + 2] << 8  & 0x0000FF00|
-				  header[HASHCODE + 3] 	   & 0x000000FF);
+				  header[HASHCODE + 3] 	     & 0x000000FF);
 	}
 	
 	public byte[] getHeaderBytes()

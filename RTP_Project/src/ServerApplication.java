@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
+import java.util.Timer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,9 +49,7 @@ public class ServerApplication {
 
 					System.out.println("Initializing RTP Server...");
 					server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);
-					server.openSession();
-
-					System.out.println("Initialization Complete");		
+					server.connect();
 				}catch(NumberFormatException e){
 					System.err.println("The port argument must be a valid port number.");
 					System.exit(1);
@@ -67,11 +67,22 @@ public class ServerApplication {
 			System.exit(1);
 		}
 
+		String input;
 		while(true){
 			//window w 
 			//terminate
+			input = server.openSession();
+			System.out.println("Timeout");
+			
 			Scanner scan = new Scanner(System.in);
-			String cmd = scan.nextLine().toLowerCase();
+
+			String cmd = null;
+//				 cmd = scan.nextLine().toLowerCase();
+			
+			if (cmd == null)
+			{
+				continue;
+			}
 			String [] split = cmd.split("\\s+");
 			if(split.length>0 && !cmd.equals("terminate")){
 				if(split.length>1 && split[0].equalsIgnoreCase("window")){
@@ -90,7 +101,6 @@ public class ServerApplication {
 				System.err.println("Invalid command.");
 				System.exit(1);
 			}
-
 		}
 		System.out.println("Shutdown successful");
 		System.exit(0);
