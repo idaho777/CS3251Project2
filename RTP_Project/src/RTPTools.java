@@ -13,12 +13,29 @@ public class RTPTools {
 	private static final int HEADER_SIZE 	= 20;
 	private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
 
-	public static boolean isValidPacketHeader(RTPPacketHeader header)
-	{
-		int headerChecksumed = CheckSum.getChecksum(header.getChecksum());
 
-		return headerChecksumed == CHECKSUM;
+	
+	private boolean isValidPacketHeader(DatagramPacket packet)
+	{
+		int headerChecksum = CheckSum.getChecksum(getHeader(packet).getChecksum());
+		CheckSum.isHashcodeValid(packet);
+
+		return (headerChecksum == CHECKSUM) && (CheckSum.isHashcodeValid(packet)) ;
 	}
+	
+	public static byte[] extractData(DatagramPacket receivePacket)
+	{
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		int data_length = receiveHeader.getWindow();
+		
+		byte[] extractedData = new byte[data_length];
+		byte[] packet = receivePacket.getData();
+		
+		System.arraycopy(packet, HEADER_SIZE, extractedData, 0, data_length);
+		
+		return extractedData;
+	}
+	
 
 	public static RTPPacketHeader getHeader(DatagramPacket receivePacket)
 	{
@@ -28,7 +45,7 @@ public class RTPTools {
 	public static DatagramPacket setHeader(DatagramPacket packet, RTPPacketHeader header)
 	{
 		byte [] packetData = packet.getData();
-		System.arraycopy(header, 0, packetData , 0, 20);
+		System.arraycopy(header, 0, packetData , 0, HEADER_SIZE);
 		packet.setData(packetData);
 		return packet;
 	}

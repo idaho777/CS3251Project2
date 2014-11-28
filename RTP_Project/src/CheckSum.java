@@ -20,7 +20,11 @@ public class CheckSum {
 	}
 	
 	public static int getHashCode(DatagramPacket packet){
-		return packet.hashCode();
+		return (RTPTools.extractData(packet)).hashCode();
+	}
+	
+	public static int getHashCode(byte [] data){
+		return data.hashCode();
 	}
 	
 	/**
