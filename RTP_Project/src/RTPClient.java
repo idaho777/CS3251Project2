@@ -221,17 +221,10 @@ public class RTPClient {
 				{
 					continue;
 				}
-<<<<<<< HEAD
 				seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 				ackNum = receiveHeader.getSeqNum();
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
-=======
-				
-				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
-				{
-					System.out.println("I have not received the last ack");
->>>>>>> 3dbea55163fc677062df139f13ddd0b14b3f4177
 					sendingPacket = createPacket(++currPacket);
 				}
 				
@@ -256,13 +249,8 @@ public class RTPClient {
 		RTPPacketHeader header = new RTPPacketHeader();
 		header.setSource(clientPort);
 		header.setDestination(serverPort);
-<<<<<<< HEAD
 		header.setSeqNum(seqNum); //should have last seq num
 		header.setAckNum((ackNum + 1) % MAX_SEQ_NUM); //???
-=======
-		header.setSeqNum(seqNum++); //should have last seq num
-		header.setAckNum(seqNum); //???
->>>>>>> 3dbea55163fc677062df139f13ddd0b14b3f4177
 		header.setWindow(data_length);
 		header.setFlags(false, false, false, false); 
 		header.setChecksum(PRECHECKSUM);
