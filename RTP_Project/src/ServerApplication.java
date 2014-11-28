@@ -1,6 +1,8 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -68,21 +70,38 @@ public class ServerApplication {
 		}
 
 		String input;
+		boolean terminate = false;
+		String cmd = null;
 		while(true){
+			
+//		    InputStreamReader fileInputStream=new InputStreamReader(System.in);
+//		    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
+//		    try
+//		    {
+			while (!terminate)
+			{
+				input = server.openSession();
+				
+			}
+//		    	while(cmd == null)
+//		    	{
+//		    	    if (bufferedReader.ready())
+//		    	        cmd = bufferedReader.readLine();
+//		    	}
+//		    	System.out.println("hahahaha");
+//		    }
+//		    catch(java.io.IOException e)
+//		    {
+//		        e.printStackTrace();
+//		    }
 			//window w 
 			//terminate
-			input = server.openSession();
 			System.out.println("Timeout");
 			
 //			Scanner scan = new Scanner(System.in);
 
-			String cmd = null;
 //				 cmd = scan.nextLine().toLowerCase();
 			
-			if (cmd == null)
-			{
-				continue;
-			}
 			String [] split = cmd.split("\\s+");
 			if(split.length>0 && !cmd.equals("terminate")){
 				if(split.length>1 && split[0].equalsIgnoreCase("window")){

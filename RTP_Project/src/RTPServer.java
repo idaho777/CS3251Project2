@@ -91,7 +91,7 @@ public class RTPServer {
 		try
 		{
 			serverSocket = new DatagramSocket(serverPort, serverIpAddress);
-			serverSocket.setSoTimeout(10000);
+			serverSocket.setSoTimeout(2000);
 		}
 		catch (SocketException e)
 		{
@@ -114,15 +114,18 @@ public class RTPServer {
 			try
 			{
 				// Receive Packet
+				System.out.println("receiving");
 				serverSocket.receive(receivePacket);
+				System.out.println("received");
 				// Get Header of Packet and 
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				// Checksum validation
 				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
+					System.out.println("here");
 					resendPacket(receivePacket, false);
 					continue;
-				}			
+				}
 
 				// ==== Packet is valid
 				if (!receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isFirst())
@@ -150,7 +153,7 @@ public class RTPServer {
 					System.out.println("Read Name");
 				}
 				// ASK FOR DOWNLOAD = LIVE FIRST DIE
-				else if (receiveHeader.isLive() && receiveHeader.isFirst() && receiveHeader.isDie() && !receiveHeader.isLast() && !receiveHeader.isLast())
+				else if (receiveHeader.isLive() && receiveHeader.isFirst() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
 					System.out.println("Checking if can download");
 					sendDownloadAck(receivePacket);
@@ -243,6 +246,7 @@ public class RTPServer {
 	
 	private void receiveName(DatagramPacket receivePacket) throws IOException
 	{
+		bytesReceived = new ArrayList<byte []>();
 		// extracts and adds data to ArrayList of byte[]s
 		byte[] data = RTPTools.extractData(receivePacket);
 
@@ -352,7 +356,7 @@ public class RTPServer {
 		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 		downloadHeader.setSeqNum(seqNum);
 		downloadHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
-	
+		downloadHeader.setWindow(DATA_SIZE);
 		if (fileData == null)
 		{
 			downloadHeader.setFlags(false, true, true, true, false); // DIE TRUE FIRST
@@ -364,7 +368,7 @@ public class RTPServer {
 			System.out.println("File Found");
 		}
 		byte[] data = new byte[DATA_SIZE];
-		downloadHeader.setChecksum(CheckSum.getHashCode(data));
+		downloadHeader.setHashCode(CheckSum.getHashCode(data));
 		
 		byte[] liveAckHeaderBytes = downloadHeader.getHeaderBytes();
 		byte[] packet = RTPTools.combineHeaderData(liveAckHeaderBytes, data);
@@ -495,6 +499,7 @@ public class RTPServer {
 	{
 		String fileName = new String(bytesReceived.remove(0));
 		int bufferLength = bytesReceived.size();
+		System.out.println(bufferLength);
 		int lastByteArrayLength = bytesReceived.get(bufferLength - 1).length;	// Length of last data
 		int fileSize = (bufferLength - 1) * DATA_SIZE + lastByteArrayLength;	// number of bytes in file
 	
