@@ -26,7 +26,7 @@ public class RTPServer {
 	private static final int HEADER_SIZE 	= 20;
 	private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
 	
-	private short serverPort, clientPort;
+	private int serverPort, clientPort;
 	private InetAddress serverIpAddress, clientIpAddress;
 
 	private int windowSize;
@@ -53,7 +53,7 @@ public class RTPServer {
 		System.out.println("Server IP: " + serverIpAddress);
 	}
 
-	public RTPServer(short sourcePort)
+	public RTPServer(int sourcePort)
 	{	
 		bytesReceived = new ArrayList<byte []> ();
 		serverPort = sourcePort;
@@ -66,7 +66,7 @@ public class RTPServer {
 		System.out.println("Server IP: " + serverIpAddress);
 	}
 
-	public RTPServer(short serverPort, String clientIpAddress, short clientPort){
+	public RTPServer(int serverPort, String clientIpAddress, int clientPort){
 
 		bytesReceived = new ArrayList<byte []> ();
 		this.serverPort = serverPort;
@@ -226,10 +226,7 @@ public class RTPServer {
 
 		ackNum = receiveHeader.getSeqNum();
 		liveAckHeader.setSeqNum(ackNum);
-		int ackPlusOne = (ackNum + 1) % MAX_SEQ_NUM;
-		liveAckHeader.setAckNum(ackPlusOne);
-		System.out.println(seqNum + " " + ackNum + " " + liveAckHeader.getSeqNum());
-		System.out.println("THIS IS THE LIVE ACK NUM " + liveAckHeader.getAckNum() + " caluclated is " + ackPlusOne);
+		liveAckHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
 		liveAckHeader.setFlags(true, false, true, true);	// live, !die, ack, last
 
 		state = ServerState.ESTABLISHED;

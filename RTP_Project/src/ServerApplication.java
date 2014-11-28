@@ -12,9 +12,9 @@ import java.util.regex.Pattern;
 public class ServerApplication {
 
 	private static final String NETEMUIP = "127.0.0.1";
-	private static final short NETEMUPORT = 8000;
-	private static final short SERVERPORT = 3252;
-	private static short serverPort, netEmuPort;
+	private static final int NETEMUPORT = 8000;
+	private static final int SERVERPORT = 3251;
+	private static int serverPort, netEmuPort;
 	private static String netEmuIpAddress;
 	private static RTPServer server; 
 	private static final String IPADDRESS_PATTERN = 
@@ -32,7 +32,7 @@ public class ServerApplication {
 				try{
 					//Format of command fta-client X A P
 					//X is the port the client will bind to
-					serverPort = Short.parseShort(args[1]);
+					serverPort = Integer.parseInt(args[1]);
 
 					//A is the IP address of NetEMU
 					Matcher matcher = ipPattern.matcher(args[2]);
@@ -43,7 +43,7 @@ public class ServerApplication {
 					}
 
 					//P is the UDP port of NetEMU
-					netEmuPort = Short.parseShort(args[3]);
+					netEmuPort = Integer.parseInt(args[3]);
 
 					System.out.println("Initializing RTP Server...");
 					server = new RTPServer(serverPort, netEmuIpAddress, netEmuPort);

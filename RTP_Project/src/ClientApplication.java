@@ -12,10 +12,10 @@ import java.util.regex.Pattern;
 public class ClientApplication {
 
 	private static final String NETEMUIP = "127.0.0.1";
-	private static final short NETEMUPORT = 8000;
-	private static final short CLIENTPORT = 3251;
+	private static final int NETEMUPORT = 8000;
+	private static final int CLIENTPORT = 3250;
 	private static String netEmuIpAddress="0.0.0.0";
-	private static short netEmuPort, clientPort;
+	private static int netEmuPort, clientPort;
 	private static RTPClient client;
 	private static final String IPADDRESS_PATTERN = 
 			"^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\." +
@@ -35,7 +35,7 @@ public class ClientApplication {
 				try{
 					//Format of command fta-client X A P
 					//X is the port the client will bind to
-					clientPort = Short.parseShort(args[1]);
+					clientPort = Integer.parseInt(args[1]);
 
 					//A is the IP address of NetEMU
 					Matcher matcher = ipPattern.matcher(args[2]);
@@ -46,7 +46,7 @@ public class ClientApplication {
 					}
 
 					//P is the UDP port of NetEMU
-					netEmuPort = Short.parseShort(args[3]);
+					netEmuPort = Integer.parseInt(args[3]);
 
 					System.out.println("Initializing RTPClient...");
 

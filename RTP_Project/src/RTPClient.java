@@ -27,7 +27,7 @@ public class RTPClient {
 
 	private ClientState state;
 
-	private short clientPort, serverPort;
+	private int clientPort, serverPort;
 	private InetAddress clientIpAddress, serverIpAddress;
 	private DatagramSocket clientSocket;
 	private Random rand;
@@ -52,7 +52,7 @@ public class RTPClient {
 		state = ClientState.CLOSED;
 	}
 
-	public RTPClient(short clientPort, String serverIpAddress, short serverPort){
+	public RTPClient(int clientPort, String serverIpAddress, int serverPort){
 		this.clientPort=clientPort;
 		this.serverPort=serverPort;
 		try {

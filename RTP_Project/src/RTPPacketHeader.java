@@ -8,10 +8,11 @@ public class RTPPacketHeader {
 	static final int SRC 	= 0;
 	static final int DST	= 2;
 	static final int SEQ 	= 4;
-	static final int ACK 	= 8;
-	static final int WIN 	= 12;
-	static final int FLAG 	= 14;
-	static final int CHKSUM = 16;
+	static final int ACK 	= 6;
+	static final int WIN 	= 8;
+	static final int FLAG 	= 10;
+	static final int CHKSUM = 12;
+	static final int HASHCODE = 16;
 	
 	private byte[] header;
 	
@@ -32,58 +33,50 @@ public class RTPPacketHeader {
 		}
 	}
 	
-	public void setSource(short portNumber)
+	public void setSource(int portNumber)
 	{
 		header[SRC] = (byte) ((portNumber & 0xFF00) >> 8);
 		header[SRC + 1] = (byte) (portNumber & 0x00FF); 
 	}
 	
-	public short getSource()
+	public int getSource()
 	{
-		return (short) (header[SRC] << 8 & 0xFF00 | header[SRC + 1] & 0x00FF);
+		return (int) (header[SRC] << 8 & 0xFF00 | header[SRC + 1] & 0x00FF);
 	}
 	
-	public void setDestination(short portNumber)
+	public void setDestination(int portNumber)
 	{
 		header[DST] 	= (byte) ((portNumber & 0xFF00) >> 8);
 		header[DST + 1] = (byte) (portNumber & 0x00FF);
 	}
 
-	public short getDestination()
+	public int getDestination()
 	{
-		return (short) (header[DST] << 8 & 0xFF00 | header[DST + 1] & 0x00FF);
+		return (int) (header[DST] << 8 & 0xFF00 | header[DST + 1] & 0x00FF);
 	}
 	
 	public void setSeqNum(int sequenceNumber)
 	{
-		header[SEQ]		= (byte) ((sequenceNumber & 0xFF000000) >> 24);
-		header[SEQ + 1] = (byte) ((sequenceNumber & 0x00FF0000) >> 16);
-		header[SEQ + 2]	= (byte) ((sequenceNumber & 0x0000FF00) >> 8);
-		header[SEQ + 3]	= (byte)  (sequenceNumber & 0x000000FF);
+		header[SEQ]		= (byte) ((sequenceNumber & 0xFF00) >> 8);
+		header[SEQ + 1]	= (byte)  (sequenceNumber & 0x00FF);
 	}
 
 	public int getSeqNum()
 	{
-		return (int) (header[SEQ] << 24 & 0xFF000000|
-				  header[SEQ + 1] << 16 & 0x00FF0000|
-				  header[SEQ + 2] << 8  & 0x0000FF00|
-				  header[SEQ + 3]       & 0x000000FF);
+		return (int) (header[SEQ] << 8 & 0xFF00|
+				  		header[SEQ + 1] & 0x00FF);
 	}
 	
 	public void setAckNum(int ackNumber)
 	{
-		header[ACK]		= (byte) ((ackNumber & 0xFF000000) >> 24);
-		header[ACK + 1] = (byte) ((ackNumber & 0x00FF0000) >> 16);
-		header[ACK + 2]	= (byte) ((ackNumber & 0x0000FF00) >> 8);
-		header[ACK + 3]	= (byte)  (ackNumber & 0x000000FF);
+		header[ACK]		= (byte) ((ackNumber & 0x0000FF00) >> 8);
+		header[ACK + 1]	= (byte)  (ackNumber & 0x000000FF);
 	}
 	
 	public int getAckNum()
 	{
-		return (int) (header[ACK] << 24 & 0xFF000000|
-				  header[ACK + 1] << 16 & 0x00FF0000|
-				  header[ACK + 2] << 8  & 0x0000FF00|
-				  header[ACK + 3])      & 0x000000FF;
+		return (int) (header[ACK] << 8 & 0xFF00|
+				  		header[ACK + 1] & 0x00FF);
 	}
 
 	public void setWindow(int windowSize)
@@ -92,9 +85,9 @@ public class RTPPacketHeader {
 		header[WIN + 1] = (byte) (windowSize & 0x00FF);		
 	}
 
-	public short getWindow()
+	public int getWindow()
 	{
-		return (short) (header[WIN] << 8 & 0xFF00 | header[WIN + 1] & 0x00FF);
+		return (int) (header[WIN] << 8 & 0xFF00 | header[WIN + 1] & 0x00FF);
 	}
 	
 	public void setFlags(boolean live, boolean die, boolean ack, boolean last)
@@ -142,6 +135,22 @@ public class RTPPacketHeader {
 				  header[CHKSUM + 1] << 16 & 0x00FF0000|
 				  header[CHKSUM + 2] << 8  & 0x0000FF00|
 				  header[CHKSUM + 3] 	   & 0x000000FF);
+	}
+	
+	public void setHashCode(int checksum)
+	{
+		header[HASHCODE]		= (byte) ((checksum & 0xFF000000) >> 24);
+		header[HASHCODE + 1]    = (byte) ((checksum & 0x00FF0000) >> 16);
+		header[HASHCODE + 2]	= (byte) ((checksum & 0x0000FF00) >> 8);
+		header[HASHCODE + 3]	= (byte) (checksum & 0x000000FF);
+	}
+	
+	public int getHashCode()
+	{
+		return (int) (header[HASHCODE] << 24 & 0xFF000000|
+				  header[HASHCODE + 1] << 16 & 0x00FF0000|
+				  header[HASHCODE + 2] << 8  & 0x0000FF00|
+				  header[HASHCODE + 3] 	   & 0x000000FF);
 	}
 	
 	public byte[] getHeaderBytes()
