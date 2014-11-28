@@ -188,10 +188,10 @@ public class RTPClient {
 	private void handShakeLiveLast(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader receiveHeader = getHeader(receivePacket);
-		ackNum = receiveHeader.getSeqNum();
 		System.out.println(ackNum + " " + seqNum + " " + receiveHeader.getAckNum());
 		if (receiveHeader.getAckNum() == (seqNum + 1) % MAX_SEQ_NUM)
 		{
+			ackNum = receiveHeader.getSeqNum();
 			seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 			state = ClientState.ESTABLISHED;
 		}
@@ -212,6 +212,7 @@ public class RTPClient {
 		{
 			sendingPacket = createPacket(currPacket);
 			try {
+				System.out.println(getHeader(sendingPacket).getSeqNum() + " ack num : " + getHeader(sendingPacket).getAckNum());
 				clientSocket.send(sendingPacket);
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
@@ -221,12 +222,10 @@ public class RTPClient {
 				{
 					continue;
 				}
-				seqNum = receiveHeader.getAckNum();
-				ackNum = (receiveHeader.getSeqNum()) + 1 % MAX_SEQ_NUM;
+				seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+				ackNum = receiveHeader.getSeqNum();
 				if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
-					System.out.println("I have not received the last ack");
-
 					sendingPacket = createPacket(++currPacket);
 				}
 				
@@ -252,7 +251,7 @@ public class RTPClient {
 		header.setSource(clientPort);
 		header.setDestination(serverPort);
 		header.setSeqNum(seqNum); //should have last seq num
-		header.setAckNum(ackNum); //???
+		header.setAckNum((ackNum + 1) % MAX_SEQ_NUM); //???
 		header.setWindow(data_length);
 		header.setFlags(false, false, false, false); 
 		header.setChecksum(PRECHECKSUM);

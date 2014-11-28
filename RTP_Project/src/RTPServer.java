@@ -110,7 +110,8 @@ public class RTPServer {
 				serverSocket.receive(receivePacket);
 				// Get Header of Packet and 
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				
+
+				System.out.println("received    " + receiveHeader.getSeqNum() + "   " + receiveHeader.getAckNum());
 				// Checksum validation
 				if (!isValidPacketHeader(receiveHeader))
 				{
@@ -123,11 +124,19 @@ public class RTPServer {
 				// ==== Packet is valid
 				if (!receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck())
 				{
-					receiveDataPacket(receivePacket);
-					if (receiveHeader.isLast())
+					if (receiveHeader.getAckNum() != (seqNum + 1) % MAX_SEQ_NUM)
 					{
-						System.out.println("assembling file");
-						assembleFile();
+						System.out.println("resending valid packet " + seqNum + " Ack Num: " + ackNum);
+						resendPacket(receivePacket);
+					}
+					else
+					{
+						receiveDataPacket(receivePacket);
+						if (receiveHeader.isLast())
+						{
+							System.out.println("assembling file");
+							assembleFile();
+						}	
 					}
 				}
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
@@ -194,11 +203,6 @@ public class RTPServer {
 		liveAckHeader.setSource(serverPort);
 		liveAckHeader.setDestination(clientPort);
 		liveAckHeader.setChecksum(PRECHECKSUM);
-		if (receiveHeader.getAckNum() == (seqNum + 1) % MAX_SEQ_NUM)
-		{
-			seqNum = receiveHeader.getAckNum();
-			ackNum = (receiveHeader.getSeqNum() + 1) % MAX_SEQ_NUM;
-		}
 		liveAckHeader.setSeqNum(seqNum);
 		liveAckHeader.setAckNum(ackNum);
 		liveAckHeader.setFlags(true, false, true, false);	// live, !die, !ack, !last
@@ -230,7 +234,7 @@ public class RTPServer {
 		liveAckHeader.setChecksum(PRECHECKSUM);
 
 		ackNum = receiveHeader.getSeqNum();
-		liveAckHeader.setSeqNum(ackNum);
+		liveAckHeader.setSeqNum(seqNum);
 		liveAckHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
 		liveAckHeader.setFlags(true, false, true, true);	// live, !die, ack, last
 
@@ -263,10 +267,10 @@ public class RTPServer {
 		dataAckHeader.setDestination(clientPort);
 		dataAckHeader.setChecksum(PRECHECKSUM);
 
+		ackNum = receiveHeader.getSeqNum();
 		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
-		ackNum = (ackNum + 1) % MAX_SEQ_NUM;
 		dataAckHeader.setSeqNum(seqNum);
-		dataAckHeader.setAckNum(ackNum);
+		dataAckHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
 		dataAckHeader.setFlags(false, false, true, false);	// ACK
 		
 		if (receiveHeader.isLast())
