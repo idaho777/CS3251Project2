@@ -8,7 +8,7 @@ public class CheckSum {
 	/**
 	 * Normal Algorithm
 	 * Calculates checksum based on byte [] data using Adler32
-	 * 
+	 * outdated.. lol
 	 * @param data
 	 * @return checksum value
 	 */
@@ -16,17 +16,10 @@ public class CheckSum {
 		Adler32 checksum = new Adler32();
 		checksum.update(data, 0, data.length);
 		long checksumVal = checksum.getValue();
-		return checksumVal;
-		
-		//note have a final number on each side, for example
-		//3251 on client 
-		//3251's checksum on server side, for example 9000
-		//so then put the 3251 in the client header and run checksum
-		//on the data when it gets through, make sure it matches da 9000
-	
+		return checksumVal;	
 	}
 	
-	public static int getChecksum(DatagramPacket packet){
+	public static int getHashCode(DatagramPacket packet){
 		return packet.hashCode();
 	}
 	
@@ -43,11 +36,11 @@ public class CheckSum {
 		
 	}
 	
-	public static boolean isChecksumValid(DatagramPacket packet){
+	public static boolean isHashcodeValid(DatagramPacket packet){
 		RTPPacketHeader header = RTPTools.getHeader(packet);
-		int actualChecksum = header.getChecksum();
-		header.setChecksum(0);
+		int actualHash = header.getHashCode();
+		header.setHashCode(0);
 		packet = RTPTools.setHeader(packet, header);
-		return (getChecksum(packet)==actualChecksum);		
+		return (getHashCode(packet)==actualHash);
 	}
 }
