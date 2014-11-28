@@ -1,3 +1,4 @@
+import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.util.zip.Adler32;
 
@@ -22,6 +23,11 @@ public class CheckSum {
 		//3251's checksum on server side, for example 9000
 		//so then put the 3251 in the client header and run checksum
 		//on the data when it gets through, make sure it matches da 9000
+	
+	}
+	
+	public static int getChecksum(DatagramPacket packet){
+		return packet.hashCode();
 	}
 	
 	/**
@@ -35,5 +41,13 @@ public class CheckSum {
 		byte[] bytes = ByteBuffer.allocate(4).putInt(num).array();
 		return (int) getChecksum(bytes);
 		
+	}
+	
+	public static boolean isChecksumValid(DatagramPacket packet){
+		RTPPacketHeader header = RTPTools.getHeader(packet);
+		int actualChecksum = header.getChecksum();
+		header.setChecksum(0);
+		packet = RTPTools.setHeader(packet, header);
+		return (getChecksum(packet)==actualChecksum);		
 	}
 }
