@@ -10,6 +10,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 
 /**
  * 
@@ -23,14 +24,16 @@ public class RTPServer {
 	private static final int PACKET_SIZE	= 1024;
 	private static final int DATA_SIZE		= 1004;
 	private static final int HEADER_SIZE 	= 20;
-
+	private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
+	
 	private short serverPort, clientPort;
 	private InetAddress serverIpAddress, clientIpAddress;
 
 	private int windowSize;
 	private DatagramSocket serverSocket;
 	private DatagramPacket sendPacket, receivePacket;
-
+	private Random rand;
+	
 	private ServerState state;
 	private int seqNum, ackNum;
 	private String pathName="";
@@ -75,6 +78,9 @@ public class RTPServer {
 			e.printStackTrace();
 		}
 		state = ServerState.CLOSED;
+		rand = new Random();
+		seqNum = rand.nextInt(MAX_SEQ_NUM);
+//		seqNum = 20;
 	}
 
 
@@ -108,10 +114,7 @@ public class RTPServer {
 				// Checksum validation
 				if (!isValidPacketHeader(receiveHeader))
 				{
-					// is not Valid Packet, send back
-					// set same flags but ack is false
-					// send same packet as received
-					// so client will resend with same everything
+					resendPacket(receivePacket);
 					continue;
 				}
 				
@@ -155,7 +158,31 @@ public class RTPServer {
 		}
 	}
 
-
+	private void resendPacket(DatagramPacket receivePacket) throws IOException
+	{
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		receiveHeader.isAck();
+		receiveHeader.setFlags
+			(
+				receiveHeader.isLive(),
+				receiveHeader.isDie(),
+				false,
+				receiveHeader.isLast()
+			);
+		
+		byte[] resendHeaderBytes = receiveHeader.getHeaderBytes();
+	
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					resendHeaderBytes,
+					resendHeaderBytes.length,
+					clientIpAddress,
+					clientPort
+				);
+		
+		serverSocket.send(receivePacket);
+	}
+	
 	private void handShakeOne(DatagramPacket receivePacket) throws IOException
 	{
 
@@ -167,7 +194,7 @@ public class RTPServer {
 		liveAckHeader.setSource(serverPort);
 		liveAckHeader.setDestination(clientPort);
 		liveAckHeader.setChecksum(PRECHECKSUM);
-		liveAckHeader.setSeqNum(0);
+		liveAckHeader.setSeqNum(seqNum);
 		liveAckHeader.setAckNum(0);
 		liveAckHeader.setFlags(true, false, true, false);	// live, !die, !ack, !last
 
@@ -188,7 +215,8 @@ public class RTPServer {
 
 	public void handShakeTwo(DatagramPacket receivePacket) throws IOException
 	{
-//		int receiveSeqNum = receiveHeader.getSeqNum();
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		int receiveSeqNum = receiveHeader.getSeqNum();
 
 		// Live Ack Header
 		RTPPacketHeader liveAckHeader = new RTPPacketHeader();
@@ -196,12 +224,12 @@ public class RTPServer {
 		liveAckHeader.setDestination(clientPort);
 		liveAckHeader.setChecksum(PRECHECKSUM);
 
-//		ackNum = receiveHeader.getSeqNum();
-//		liveAckHeader.setSeqNum(seqNum);
-//		liveAckHeader.setAckNum(ackNum + 1);
-		liveAckHeader.setSeqNum(0);
-		liveAckHeader.setAckNum(0);
-		
+		ackNum = receiveHeader.getSeqNum();
+		liveAckHeader.setSeqNum(ackNum);
+		int ackPlusOne = (ackNum + 1) % MAX_SEQ_NUM;
+		liveAckHeader.setAckNum(ackPlusOne);
+		System.out.println(seqNum + " " + ackNum + " " + liveAckHeader.getSeqNum());
+		System.out.println("THIS IS THE LIVE ACK NUM " + liveAckHeader.getAckNum() + " caluclated is " + ackPlusOne);
 		liveAckHeader.setFlags(true, false, true, true);	// live, !die, ack, last
 
 		state = ServerState.ESTABLISHED;
@@ -297,7 +325,7 @@ public class RTPServer {
 	public void close()
 	{		
 		state = ServerState.CLOSE_WAIT1;
-		byte[] arr = new byte[1024];
+		byte[] arr = new byte[PACKET_SIZE];
 		receivePacket = new DatagramPacket(arr, arr.length);
 		
 		int tries = 0;

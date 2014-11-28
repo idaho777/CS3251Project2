@@ -73,7 +73,7 @@ public class RTPPacketHeader {
 	public void setAckNum(int ackNumber)
 	{
 		header[ACK]		= (byte) ((ackNumber & 0xFF000000) >> 24);
-		header[ACK + 1] = (byte) ((ackNumber & 0x00FF0000) >>16);
+		header[ACK + 1] = (byte) ((ackNumber & 0x00FF0000) >> 16);
 		header[ACK + 2]	= (byte) ((ackNumber & 0x0000FF00) >> 8);
 		header[ACK + 3]	= (byte)  (ackNumber & 0x000000FF);
 	}

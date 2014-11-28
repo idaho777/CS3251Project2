@@ -7,6 +7,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -22,16 +23,18 @@ public class RTPClient {
 	private static final int PACKET_SIZE	= 1024;
 	private static final int DATA_SIZE		= 1004;
 	private static final int HEADER_SIZE 	= 20;
+	private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
 
 	private ClientState state;
 
 	private short clientPort, serverPort;
 	private InetAddress clientIpAddress, serverIpAddress;
 	private DatagramSocket clientSocket;
-
+	private Random rand;
+	
 	private int timeout = 10000;	// milliseconds
 
-	private byte[] window = new byte[0xFFFF];
+	private byte[] window = new byte[MAX_SEQ_NUM];
 	private int seqNum, ackNum, windowSize, bytesRemaining;
 	private String pathName="";
 	private byte [] fileData;
@@ -44,7 +47,6 @@ public class RTPClient {
 			this.clientIpAddress = InetAddress.getLocalHost();
 			this.serverIpAddress = InetAddress.getLocalHost();
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		state = ClientState.CLOSED;
@@ -55,13 +57,13 @@ public class RTPClient {
 		this.serverPort=serverPort;
 		try {
 			this.clientIpAddress = InetAddress.getLocalHost();
-			
 			this.serverIpAddress = InetAddress.getByName(serverIpAddress);
-//			this.serverIpAddress = InetAddress.getLocalHost();
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		rand = new Random();
+		seqNum = rand.nextInt(MAX_SEQ_NUM);
+//		seqNum = 10;
 		state = ClientState.CLOSED;
 	}
 
@@ -74,22 +76,21 @@ public class RTPClient {
 		// setup socket
 		System.out.println(clientPort + " " + clientIpAddress);
 		System.out.println(serverPort + " " + serverIpAddress);
-		
 		try {
 			clientSocket = new DatagramSocket(clientPort, clientIpAddress);
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
 
-		byte[] receiveMessage = new byte[1024];
+		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
 		// Setup Initializing Header
 		RTPPacketHeader liveHeader = new RTPPacketHeader();
 		liveHeader.setSource(clientPort);
 		liveHeader.setDestination(serverPort);
-		liveHeader.setSeqNum(0);
-		liveHeader.setAckNum(0);
+		liveHeader.setSeqNum(seqNum);
+		liveHeader.setAckNum(ackNum);
 		liveHeader.setFlags(true, false, false, false); //setting LIVE flag on
 		liveHeader.setChecksum(PRECHECKSUM);
 		byte [] headerBytes = liveHeader.getHeaderBytes();
@@ -122,7 +123,7 @@ public class RTPClient {
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 				if (!isValidPacketHeader(receiveHeader))
 				{
-					System.out.println("LOOOP MEEEE");
+					System.out.println("CURROPTED in " + state);
 					continue;
 				}
 
@@ -165,8 +166,7 @@ public class RTPClient {
 		ackHeader.setSource(clientPort);
 		ackHeader.setDestination(serverPort);
 		ackHeader.setChecksum(PRECHECKSUM);
-		//		ackHeader.setSeqNum(seqNum);
-		ackHeader.setSeqNum(0);
+		ackHeader.setSeqNum(seqNum);
 		ackHeader.setAckNum(0);
 		ackHeader.setFlags(true, false, false, true); // Live and last
 
@@ -187,9 +187,14 @@ public class RTPClient {
 
 	private void handShakeLiveLast(DatagramPacket receivePacket) throws IOException
 	{
-		//		ackNum = receiveHeader.getSeqNum();
-		//		seqNum++;
-		state = ClientState.ESTABLISHED;
+		RTPPacketHeader receiveHeader = getHeader(receivePacket);
+		ackNum = receiveHeader.getSeqNum();
+		System.out.println(ackNum + " " + seqNum + " " + receiveHeader.getAckNum());
+		if (receiveHeader.getAckNum() == (seqNum + 1) % MAX_SEQ_NUM)
+		{
+			seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+			state = ClientState.ESTABLISHED;
+		}
 	}
 
 	/**
@@ -211,7 +216,7 @@ public class RTPClient {
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 				
-				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
@@ -288,7 +293,7 @@ public class RTPClient {
 	 * Once data transfer stops, performs connection teardown
 	 */
 	public void teardown(){
-		byte[] receiveMessage = new byte[1024];
+		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 
 		// Setup header for the DIE packet
@@ -317,7 +322,7 @@ public class RTPClient {
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
 
 				System.out.println(receiveHeader.getSeqNum());
-				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
@@ -347,7 +352,7 @@ public class RTPClient {
 			try{
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = getHeader(receivePacket);
-				if (!receivePacket.getAddress().equals(serverIpAddress) || !isValidPacketHeader(receiveHeader))
+				if (!isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
