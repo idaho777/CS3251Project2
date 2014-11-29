@@ -71,23 +71,25 @@ public class ServerApplication {
 	    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
 	    try
 	    {
-	    	String s = "";
+	    	String s = new String("");
 
 	    	while((System.currentTimeMillis()>=end))
 	    	{
-	    	    if (bufferedReader.ready())
+	    	    if (bufferedReader.ready()){
 	    	    	 s += bufferedReader.readLine();
-	    	    
-	    	    //System.out.println(s);
-	    	    
-	    	    if(s.equalsIgnoreCase("terminate")){
-	    	    	server.close();
-	    	    	s = "";
-	    	    	System.out.println("Server is terminating...");
-	    	    }else{
-	    	    	System.err.println("Invalid command");
+	    	    	 System.out.println("here");
+
+	 	    	    System.out.println(s);
+	 	    	    if(s.equalsIgnoreCase("terminate")){
+	 	    	    	server.close();
+	 	    	    	s = "";
+	 	    	    	System.out.println("Server is terminating...");
+	 	    	    }else{
+	 	    	    	System.err.println("Invalid command");
+	 	    	    	break;
+	 	    	    }
+	 	    	}
 	    	    }
-	    	}
 
 	    	bufferedReader.close();
 	    }

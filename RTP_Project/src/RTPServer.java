@@ -1,6 +1,4 @@
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -9,9 +7,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Timer;
@@ -592,8 +588,8 @@ public class RTPServer {
 
 		// Setup header for the DIE packet
 		RTPPacketHeader dieHeader = new RTPPacketHeader();
-		dieHeader.setSource(clientPort);
-		dieHeader.setDestination(serverPort);
+		dieHeader.setSource(serverPort);
+		dieHeader.setDestination(clientPort);
 		dieHeader.setSeqNum(0); //should have last seq num
 		dieHeader.setAckNum(0);
 		dieHeader.setFlags(false, true, false, false, false); //setting DIE flag on
@@ -707,8 +703,8 @@ public class RTPServer {
 	{	
 		//makes new ACK header 
 		RTPPacketHeader ackHeader = new RTPPacketHeader();
-		ackHeader.setSource(clientPort);
-		ackHeader.setDestination(serverPort);
+		ackHeader.setSource(serverPort);
+		ackHeader.setDestination(clientPort);
 		ackHeader.setChecksum(PRECHECKSUM);
 		ackHeader.setSeqNum(0);
 		ackHeader.setAckNum(0);
@@ -722,8 +718,8 @@ public class RTPServer {
 				(
 					ackHeaderBytes,
 					HEADER_SIZE,
-					serverIpAddress,
-					serverPort
+					clientIpAddress,
+					clientPort
 				);	
 		serverSocket.send(ackPacket);
 	}
@@ -731,8 +727,8 @@ public class RTPServer {
 	private void sendDieCloseState() throws IOException{
 		// Setup header for the DIE packet
 		RTPPacketHeader dieHeader = new RTPPacketHeader();
-		dieHeader.setSource(clientPort);
-		dieHeader.setDestination(serverPort);
+		dieHeader.setSource(serverPort);
+		dieHeader.setDestination(clientPort);
 		dieHeader.setSeqNum(10); //should have last seq num 
 		dieHeader.setAckNum(0); //?????? What should these be after the ACK
 		dieHeader.setFlags(false, true, false, false, true); //setting DIE flag on
