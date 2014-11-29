@@ -81,7 +81,7 @@ public class ServerApplication {
 
 	 	    	    System.out.println(s);
 	 	    	    if(s.equalsIgnoreCase("terminate")){
-	 	    	    	server.close();
+	 	    	    	server.terminate();
 	 	    	    	s = "";
 	 	    	    	System.out.println("Server is terminating...");
 	 	    	    }else{

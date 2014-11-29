@@ -390,6 +390,7 @@ public class RTPClient {
 				// Assuming valid and Acknowledged\
 				if (!receiveHeader.isAck()){
 					continue;
+				}
 				if(checkServerRequestsTermination(receivePacket)){
 					terminateFromServer();
 				}
@@ -821,6 +822,7 @@ public class RTPClient {
 //			return false;
 //		}
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+		System.out.println("Here");
 		// Assuming valid and Acknowledged, server has sent DIE
 		return  (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() 
 				&& !receiveHeader.isLive());
