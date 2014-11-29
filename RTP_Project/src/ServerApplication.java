@@ -65,40 +65,42 @@ public class ServerApplication {
 			System.err.println("fta-server must be run as first command in the format of fta-server X A P");
 			System.exit(1);
 		}
-		server.openSession();
 		long end=System.currentTimeMillis();
 	    InputStreamReader fileInputStream=new InputStreamReader(System.in);
 	    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
-	    try
+	    while (true)
 	    {
-	    	String s = new String("");
+//	    try
+//	    {
+//	    	String s = new String("");
 
-	    	while((System.currentTimeMillis()>=end))
-	    	{
-	    	    if (bufferedReader.ready()){
-	    	    	 s += bufferedReader.readLine();
-	    	    	 System.out.println("here");
+			server.openSession();
+//	    	while((System.currentTimeMillis()>=end))
+//	    	{
+//	    	    if (bufferedReader.ready()){
+//	    	    	 s += bufferedReader.readLine();
+//	    	    	 System.out.println("here");
+//
+//	 	    	    System.out.println(s);
+//	 	    	    if(s.equalsIgnoreCase("terminate")){
+//	 	    	    	server.close();
+//	 	    	    	s = "";
+//	 	    	    	System.out.println("Server is terminating...");
+//	 	    	    }else{
+//	 	    	    	System.err.println("Invalid command");
+//	 	    	    	break;
+//	 	    	    }
+//	 	    	}
+//	    	    }
 
-	 	    	    System.out.println(s);
-	 	    	    if(s.equalsIgnoreCase("terminate")){
-	 	    	    	server.close();
-	 	    	    	s = "";
-	 	    	    	System.out.println("Server is terminating...");
-	 	    	    }else{
-	 	    	    	System.err.println("Invalid command");
-	 	    	    	break;
-	 	    	    }
-	 	    	}
-	    	    }
-
-	    	bufferedReader.close();
+//	    	bufferedReader.close();
+//	    }
+//	    catch(java.io.IOException e)
+//	    {
+//	    	System.err.println("Server could not be shut down");
+//	        e.printStackTrace();
+//	    }
 	    }
-	    catch(java.io.IOException e)
-	    {
-	    	System.err.println("Server could not be shut down");
-	        e.printStackTrace();
-	    }
-//		input
 //		String input;
 //		while(true){
 //			//window w 

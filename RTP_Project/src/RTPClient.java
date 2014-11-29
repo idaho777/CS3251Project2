@@ -121,9 +121,7 @@ public class RTPClient {
 		{
 			try
 			{
-				System.out.println("sending");
 				clientSocket.send(setupPacket);
-				System.out.println("sent");
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
@@ -226,9 +224,11 @@ public class RTPClient {
 		DatagramPacket sendingPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 		DatagramPacket receivePacket = new DatagramPacket(new byte [PACKET_SIZE], PACKET_SIZE);
 		
+		int tries = 0;
 		while (true)
 		{
-			try {
+			try 
+			{
 				clientSocket.send(sendingPacket);
 				clientSocket.receive(receivePacket);
 				
@@ -242,7 +242,15 @@ public class RTPClient {
 				{
 					break;
 				}
-			} catch (IOException e) {
+			} 
+			catch (SocketTimeoutException es)
+			{
+				System.out.println("Timeout, resend");
+				if (tries++ >= 5)
+				{
+					System.out.println("Unsuccessful Connection");
+				}
+			}catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -379,7 +387,7 @@ public class RTPClient {
 			{
 				clientSocket.send(dlPacket);
 				clientSocket.receive(receivePacket);
-				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
+				System.out.println(currPacket + " " + seqNum + " ---- " + ackNum);
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				boolean isLast = receiveHeader.isLast();
 				if (!RTPTools.isValidPacketHeader(receivePacket))
@@ -388,35 +396,48 @@ public class RTPClient {
 					continue;
 				}
 				// Assuming valid and Acknowledged\
-				if (!receiveHeader.isAck()){
+				if (!receiveHeader.isAck())
+				{
+					System.out.println("ack");
 					continue;
+				}
 				if(checkServerRequestsTermination(receivePacket)){
 					terminateFromServer();
 				}
-				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
+				if (seqNum + 1 == receiveHeader.getAckNum())
 				{
-					System.out.println("Ack First");
-					dlPacket = receiveDataPacket(receivePacket, currPacket, true);
-					this.fileName = fileName;
-				}
-				// Downloading files
-				else if (!receiveHeader.isLive() && !receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck())
-				{
-					System.out.println("Ack");
-					currPacket++;
-					dlPacket = receiveDataPacket(receivePacket, currPacket, false);
-					finishedDownloading = isLast;
-				}
-				// Cannot find file
-				else if (receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck())
-				{
-					System.out.println("WTF");
-					return false;
+					if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
+					{
+						System.out.println("Ack First");
+						dlPacket = receiveDataPacket(receivePacket, currPacket, true);
+						this.fileName = fileName;
+					}
+					// Downloading files
+					else if (!receiveHeader.isLive() && !receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck())
+					{
+						System.out.println("Ack");
+						currPacket++;
+						dlPacket = receiveDataPacket(receivePacket, currPacket, false);
+						finishedDownloading = isLast;
+					}
+					// Cannot find file
+					else if (receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck())
+					{
+						System.out.println("WTF");
+						return false;
+					}
+					else
+					{
+						System.out.println("SKIPP");
+					}	
 				}
 				else
 				{
-					System.out.println("SKIPP");
+					System.out.println("Else Statement");
+					System.out.println(seqNum + " " + ackNum);
+					System.out.println(receiveHeader.getAckNum() + " " + receiveHeader.getSeqNum());
 				}
+				
 			}
 			catch (SocketTimeoutException s)
 			{
