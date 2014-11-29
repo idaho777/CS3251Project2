@@ -91,7 +91,7 @@ public class RTPServer {
 		try
 		{
 			serverSocket = new DatagramSocket(serverPort, serverIpAddress);
-			serverSocket.setSoTimeout(2000);
+			serverSocket.setSoTimeout(10000);
 		}
 		catch (SocketException e)
 		{
@@ -114,15 +114,13 @@ public class RTPServer {
 			try
 			{
 				// Receive Packet
-				System.out.println("receiving");
 				serverSocket.receive(receivePacket);
-				System.out.println("received");
 				// Get Header of Packet and 
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				// Checksum validation
 				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
-					System.out.println("here");
+					System.out.println("curropt, false");
 					resendPacket(receivePacket, false);
 					continue;
 				}
@@ -155,13 +153,20 @@ public class RTPServer {
 				// ASK FOR DOWNLOAD = LIVE FIRST DIE
 				else if (receiveHeader.isLive() && receiveHeader.isFirst() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					System.out.println("Checking if can download");
-					sendDownloadAck(receivePacket);
+					if (seqNum + 1 == receiveHeader.getAckNum() && ackNum + 1 == receiveHeader.getSeqNum())
+					{
+						System.out.println("Checking if can download");
+						sendDownloadAck(receivePacket);
+					}
+					else
+					{
+						resendPacket(receivePacket, true);
+					}
 				}
 				// Uploading to client = LIVE FIRST
-				else if (receiveHeader.isFirst() && receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
+				else if (receiveHeader.isLive() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					System.out.println("UPLOAD?");
+					System.out.println("Get on ");
 					sendDownload(receivePacket);
 				}
 				// HAND SHAKE ONE = LIVE
@@ -181,7 +186,11 @@ public class RTPServer {
 				else if (receiveHeader.isDie() && !receiveHeader.isLive() && !receiveHeader.isAck() && !receiveHeader.isFirst() && !receiveHeader.isLast())
 				{
 					close();
-				}	
+				}
+				else
+				{
+					System.out.println("hAHAHAHHAHAHAHAH");
+				}
 			}
 			catch (SocketTimeoutException s)
 			{
@@ -341,7 +350,7 @@ public class RTPServer {
 	private void sendDownloadAck(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-		
+
 		byte[] dataBytes = RTPTools.extractData(receivePacket);
 		String fileName = new String(dataBytes); 
 		String filePath = System.getProperty("user.dir") + "/" + fileName;
@@ -356,6 +365,11 @@ public class RTPServer {
 		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 		downloadHeader.setSeqNum(seqNum);
 		downloadHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
+		if (receiveHeader.getSeqNum() == ackNum + 1)
+		{
+			
+		}
+		
 		downloadHeader.setWindow(DATA_SIZE);
 		if (fileData == null)
 		{
@@ -395,6 +409,8 @@ public class RTPServer {
 		RTPPacketHeader header = new RTPPacketHeader();
 		header.setSource(clientPort);
 		header.setDestination(serverPort);
+		seqNum = (seqNum + 1) % MAX_SEQ_NUM;
+		ackNum = RTPTools.getHeader(receivePacket).getSeqNum();
 		header.setSeqNum(seqNum);
 		header.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
 		header.setWindow(data_length);

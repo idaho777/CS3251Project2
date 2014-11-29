@@ -373,20 +373,20 @@ public class RTPClient {
 		{
 			try
 			{
-				System.out.println("Send");
 				clientSocket.send(dlPacket);
-				System.out.println("Sent");
 				clientSocket.receive(receivePacket);
-				System.out.println("receive");
-
+				System.out.print(currPacket + " " + seqNum + " ---- " + ackNum + " \n");
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				boolean isLast = receiveHeader.isLast();
 				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
-					System.out.println("CORRUPTED in " + state);
+					System.out.println("Corrupted");
 					continue;
 				}
-				// Assuming valid and Acknowledged
+				// Assuming valid and Acknowledged\
+				if (!receiveHeader.isAck()){
+					continue;
+				}
 				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
 					System.out.println("Ack First");
