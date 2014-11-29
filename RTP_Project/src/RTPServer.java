@@ -52,7 +52,6 @@ public class RTPServer {
 			e.printStackTrace();
 		}
 		state = ServerState.CLOSED;
-		System.out.println("Server IP: " + serverIpAddress);
 	}
 
 	public RTPServer(int sourcePort)
@@ -65,7 +64,6 @@ public class RTPServer {
 			e.printStackTrace();
 		}
 		state = ServerState.CLOSED;
-		System.out.println("Server IP: " + serverIpAddress);
 	}
 
 	public RTPServer(int serverPort, String clientIpAddress, int clientPort){
@@ -105,8 +103,6 @@ public class RTPServer {
 
 		state = ServerState.LISTEN;
 		// handshake
-		System.out.println(serverPort + " " + serverIpAddress);
-		System.out.println(clientPort + " " + clientIpAddress);
 		while (state != ServerState.CLOSED)
 		{
 			try
@@ -118,7 +114,7 @@ public class RTPServer {
 				// Checksum validation
 				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
-					System.out.println("curropt, false");
+					//System.out.println("curropt, false");
 					resendPacket(receivePacket, false);
 					continue;
 				}
@@ -133,11 +129,11 @@ public class RTPServer {
 					else if (receiveHeader.getSeqNum() == ackNum + 1)
 					{
 						receiveDataPacket(receivePacket);
-						System.out.println("resending response packet");
+						//System.out.println("resending response packet");
 						if (receiveHeader.isLast())
 						{
-							System.out.println("assembling file");
-							System.out.println(this.bytesReceived.size());
+//							System.out.println("assembling file");
+//							System.out.println(this.bytesReceived.size());
 							assembleFile();
 						}	
 					}
@@ -146,14 +142,14 @@ public class RTPServer {
 				else if ( receiveHeader.isFirst() && !receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
 					receiveName(receivePacket);
-					System.out.println("Read Name");
+					//System.out.println("Read Name");
 				}
 				// ASK FOR DOWNLOAD = LIVE FIRST DIE
 				else if (receiveHeader.isLive() && receiveHeader.isFirst() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
 					if (seqNum + 1 == receiveHeader.getAckNum() && ackNum + 1 == receiveHeader.getSeqNum())
 					{
-						System.out.println("Checking if can download");
+						//System.out.println("Checking if can download");
 						sendDownloadAck(receivePacket);
 					}
 					else
@@ -166,27 +162,27 @@ public class RTPServer {
 				{
 					if (receiveHeader.getSeqNum() == ackNum + 1)
 					{
-						System.out.println("Get on ");
+						//System.out.println("Get on ");
 						sendDownload(receivePacket);
 					}
 					else if (receiveHeader.getAckNum() == seqNum)
 					{
-						System.out.println("Resending live first");
+						//System.out.println("Resending live first");
 						resendTest(receivePacket, true);
 					}
 				}
 				// HAND SHAKE ONE = LIVE
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isFirst() && !receiveHeader.isLast())
 				{
-					System.out.println("HAND SHAKE ONE");
+					//System.out.println("HAND SHAKE ONE");
 					handShakeOne(receivePacket);
 				}
 				// HAND SHAKE TWO = LIVE LAST
 				else if (receiveHeader.isLive() && receiveHeader.isLast() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isFirst())
 				{
-					System.out.println("HAND SHAKE TWO");
+					//System.out.println("HAND SHAKE TWO");
 					handShakeTwo(receivePacket);
-					System.out.println(seqNum + " ack num : " + ackNum);
+					//System.out.println(seqNum + " ack num : " + ackNum);
 				}
 				// close = DIE
 				else if (receiveHeader.isDie() && !receiveHeader.isLive() && !receiveHeader.isAck() && !receiveHeader.isFirst() && !receiveHeader.isLast())
@@ -433,7 +429,7 @@ public class RTPServer {
 		{
 			// File is found
 			downloadHeader.setFlags(true, false, true, true, false);
-			System.out.println("File Found");
+			//System.out.println("File Found");
 		}
 		byte[] data = new byte[DATA_SIZE];
 		downloadHeader.setHashCode(CheckSum.getHashCode(data));
@@ -455,7 +451,6 @@ public class RTPServer {
 		byte[] receiveData = RTPTools.extractData(receivePacket);
 		ByteBuffer wrapped = ByteBuffer.wrap(receiveData); // big-endian by default
 		int currPacket = wrapped.getInt();
-		System.out.println("CurrPacket " + currPacket);
 		
 		int bytesRemaining = fileData.length - currPacket * DATA_SIZE;
 		int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
@@ -590,7 +585,6 @@ public class RTPServer {
 		//clearing out byte received buffer and file data for next uploads
 		fileData = null;
 		bytesReceived = new ArrayList<byte []> ();
-		System.out.println("end");
 	}
 	
 	
@@ -626,7 +620,6 @@ public class RTPServer {
 				
 				if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					System.out.println("I am the cause of repeat");
 					continue;
 				}
 				
@@ -639,7 +632,7 @@ public class RTPServer {
 			}
 			catch (SocketTimeoutException s)
 			{
-				System.out.println("Have not received DIE from Client for termination");
+				//System.out.println("Have not received DIE from Client for termination");
 				if(tries++ >= 5){
 					System.out.println("Teardown unstable connection");
 					return;
@@ -683,14 +676,14 @@ public class RTPServer {
 
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 
-				System.out.println(receiveHeader.getSeqNum());
+				//System.out.println(receiveHeader.getSeqNum());
 				if (!RTPTools.isValidPacketHeader(receiveHeader))
 				{
 					continue;
 				}
-				System.out.println(receiveHeader.isLive() + " " + receiveHeader.isDie() + " " + receiveHeader.isAck() + " " + receiveHeader.isLast());
+				
 				if (receiveHeader.isDie() && receiveHeader.isAck() && !receiveHeader.isLast()){
-					System.out.println("ACK from server has been sent. State is now: SERVER_ACK_SENT");
+					//System.out.println("ACK from server has been sent. State is now: SERVER_ACK_SENT");
 					state=ServerState.CLIENT_ACK_SENT;
 				}
 			}
@@ -708,7 +701,7 @@ public class RTPServer {
 		}
 		//entering the state where it waits for server to send DIE
 		state = ServerState.CLOSE_WAIT2;
-		System.out.println("State: CLOSE_WAIT_2");
+		//System.out.println("State: CLOSE_WAIT_2");
 		tries = 0;
 		Timer timer = null;
 		while (state != ServerState.TIMED_WAIT || timedTaskRun){
@@ -731,7 +724,7 @@ public class RTPServer {
 				}
 			}
 			catch (SocketTimeoutException s){
-				System.out.println("Timeout, resend");
+				System.out.println("Timeout, resending");
 				if(tries++>=5){
 					System.out.println("Unsuccessful termination");
 					return false;
@@ -743,8 +736,6 @@ public class RTPServer {
 			}
 		}
 
-		System.out.println("exit termination");
-		
 		return true;
 		
 	}
@@ -822,7 +813,7 @@ public class RTPServer {
 		state = ServerState.LAST_ACK;
 
 		serverSocket.send(diePacket);
-		System.out.println("Server DIE has been sent");
+		//System.out.println("Server DIE has been sent");
 	}
 
 	public ServerState getServerState(){
@@ -854,7 +845,6 @@ public class RTPServer {
 		public void run() {
 			state=ServerState.CLOSED;
 			serverSocket.close();
-			System.out.println("Task has been run");
 			timedTaskRun = true;
 		}
 	}

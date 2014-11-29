@@ -34,12 +34,6 @@ public class ClientApplication {
 
 		Scanner scan = new Scanner(System.in);
 		Pattern ipPattern  = Pattern.compile(IPADDRESS_PATTERN);	
-		try {
-			System.out.println(InetAddress.getLocalHost().toString());
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		boolean connected = false;
 		boolean downloaded = false;
 
@@ -82,8 +76,6 @@ public class ClientApplication {
 			System.err.println("fta-client must be run as first command in the format of fta-client X A P");
 			System.exit(1);
 		}	
-			//String cmd = scan.nextLine().toLowerCase();
-			//String [] split = cmd.split("\\s+");
 			long end=System.currentTimeMillis();
 			InputStreamReader fileInputStream=new InputStreamReader(System.in);
 			BufferedReader bufferedReader=new BufferedReader(fileInputStream);
