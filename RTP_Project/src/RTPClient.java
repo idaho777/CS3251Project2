@@ -260,7 +260,7 @@ public class RTPClient {
 	/**
 	 * Starts sending data transfer
 	 */
-	public void startUpload(byte [] file){
+	public boolean startUpload(byte [] file){
 		fileData = file;
 		bytesRemaining = fileData.length;
 		int packetNumber = (fileData.length / DATA_SIZE) + ((fileData.length % DATA_SIZE > 0) ? 1 : 0);
@@ -688,7 +688,7 @@ public class RTPClient {
 		this.windowSize=window;
 	}
 	
-	public void terminateFromServer(){
+	public boolean terminateFromServer(){
 		state = ClientState.DIE_WAIT_1;
 		byte[] arr = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(arr, arr.length);
