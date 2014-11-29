@@ -2,23 +2,20 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Random;
 
 
 public class RTPTools {
 	private static final int CHECKSUM 		= 13566144;
-	private static final int PRECHECKSUM 	= 3251;
+	//private static final int PRECHECKSUM 	= 3251;
 	private static final int PACKET_SIZE	= 1024;
-	private static final int DATA_SIZE		= 1004;
+	//private static final int DATA_SIZE		= 1004;
 	private static final int HEADER_SIZE 	= 20;
-	private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
+	//private static final int MAX_SEQ_NUM 	= (int) 0xFFFF;
 
 
 	public static byte [] combineHeaderData(byte [] headerBytes, byte [] data){
@@ -46,7 +43,6 @@ public class RTPTools {
 	
 	public static byte[] extractData(DatagramPacket receivePacket, int headerSize, int dataSize)
 	{
-		RTPPacketHeader receiveHeader = getHeader(receivePacket,headerSize);
 		
 		byte[] extractedData = new byte[dataSize];
 		byte[] packet = receivePacket.getData();

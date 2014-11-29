@@ -8,7 +8,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,6 +53,7 @@ public class ClientApplication {
 					if(matcher.matches()){
 						netEmuIpAddress = args[2];
 					}else{
+						scan.close();
 						throw new IllegalArgumentException();
 					}
 
@@ -84,7 +84,6 @@ public class ClientApplication {
 		while(true){
 			String cmd = scan.nextLine().toLowerCase();
 			String [] split = cmd.split("\\s+");
-			byte [] fileData2 = null;
 			if(split.length>0 && !cmd.equals("disconnect")){
 				switch(split[0]){
 				case "connect":{

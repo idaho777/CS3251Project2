@@ -1,6 +1,4 @@
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -9,11 +7,11 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * 
@@ -43,6 +41,7 @@ public class RTPServer {
 	private String pathName="";
 	private ArrayList<byte[]> bytesReceived;
 	private byte[] fileData;
+	private boolean timedTaskRun= false;
 
 	public RTPServer()
 	{
@@ -204,6 +203,7 @@ public class RTPServer {
 		return pathName;
 	}
 
+	
 		
 	private void resendPacket(DatagramPacket receivePacket, boolean wasAcked) throws IOException
 	{
@@ -598,6 +598,96 @@ public class RTPServer {
 		}
 	}
 
+	public boolean terminate(){
+		byte[] receiveMessage = new byte[PACKET_SIZE];
+		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
+
+		// Setup header for the DIE packet
+		RTPPacketHeader dieHeader = new RTPPacketHeader();
+		dieHeader.setSource(serverPort);
+		dieHeader.setDestination(clientPort);
+		dieHeader.setSeqNum(0); //should have last seq num
+		dieHeader.setAckNum(0);
+		dieHeader.setFlags(false, true, false, false, false); //setting DIE flag on
+		dieHeader.setChecksum(PRECHECKSUM);
+		byte [] headerBytes = dieHeader.getHeaderBytes();
+
+		DatagramPacket terminatePacket = new DatagramPacket(headerBytes, HEADER_SIZE, clientIpAddress, clientPort);
+		
+		int tries = 0;
+		state = ServerState.CLOSE_WAIT1;
+		while (state != ServerState.CLIENT_ACK_SENT){
+			try
+			{
+				System.out.println("tries:" + tries);
+				serverSocket.send(terminatePacket);
+				serverSocket.receive(receivePacket);
+
+				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+
+				System.out.println(receiveHeader.getSeqNum());
+				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				{
+					continue;
+				}
+				System.out.println(receiveHeader.isLive() + " " + receiveHeader.isDie() + " " + receiveHeader.isAck() + " " + receiveHeader.isLast());
+				if (receiveHeader.isDie() && receiveHeader.isAck() && !receiveHeader.isLast()){
+					System.out.println("ACK from server has been sent. State is now: SERVER_ACK_SENT");
+					state=ServerState.CLIENT_ACK_SENT;
+				}
+			}
+			catch (SocketTimeoutException s){
+				System.out.println("Timeout, resend");
+				if(tries++>=5){
+					System.out.println("Unsuccessful Connection");
+					return false;
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				return false;
+			}
+		}
+		//entering the state where it waits for server to send DIE
+		state = ServerState.CLOSE_WAIT2;
+		System.out.println("State: CLOSE_WAIT_2");
+		tries = 0;
+		Timer timer = null;
+		while (state != ServerState.TIMED_WAIT || timedTaskRun){
+			try{
+				serverSocket.receive(receivePacket);
+				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				{
+					continue;
+				}
+				if (receiveHeader.isDie() && receiveHeader.isLast())
+				{
+					sendCloseAckState(); //sends the final ACK	
+					if(timer==null){
+						timer = new Timer();
+						timer.schedule(new timedWaitTeardown(), 5*100); //timedwaitTeardown changes state and closes socket
+					}
+				}
+			}
+			catch (SocketTimeoutException s){
+				System.out.println("Timeout, resend");
+				if(tries++>=5){
+					System.out.println("Unsuccessful Connection");
+					return false;
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				return false;
+			}
+		}
+
+		System.out.println("exit termination");
+		
+		return true;
+		
+	}
 	private void sendAckCloseState() throws IOException
 	{
 		// DIE Ack Header
@@ -624,12 +714,37 @@ public class RTPServer {
 		serverSocket.send(sendPacket);
 
 	}
+	
+	private void sendCloseAckState() throws IOException
+	{	
+		//makes new ACK header 
+		RTPPacketHeader ackHeader = new RTPPacketHeader();
+		ackHeader.setSource(serverPort);
+		ackHeader.setDestination(clientPort);
+		ackHeader.setChecksum(PRECHECKSUM);
+		ackHeader.setSeqNum(0);
+		ackHeader.setAckNum(0);
+
+		state = ServerState.TIMED_WAIT;
+		ackHeader.setFlags(false, true, true, false, true); //die, ack, last flags on
+
+		byte[] ackHeaderBytes = ackHeader.getHeaderBytes();
+
+		DatagramPacket ackPacket = new DatagramPacket
+				(
+					ackHeaderBytes,
+					HEADER_SIZE,
+					clientIpAddress,
+					clientPort
+				);	
+		serverSocket.send(ackPacket);
+	}
 
 	private void sendDieCloseState() throws IOException{
 		// Setup header for the DIE packet
 		RTPPacketHeader dieHeader = new RTPPacketHeader();
-		dieHeader.setSource(clientPort);
-		dieHeader.setDestination(serverPort);
+		dieHeader.setSource(serverPort);
+		dieHeader.setDestination(clientPort);
 		dieHeader.setSeqNum(10); //should have last seq num 
 		dieHeader.setAckNum(0); //?????? What should these be after the ACK
 		dieHeader.setFlags(false, true, false, false, true); //setting DIE flag on
@@ -666,4 +781,22 @@ public class RTPServer {
 	{
 		return fileData;
 	}
+	
+	/**
+	 * A private class that consists of the task to close down the
+	 * client socket after the timed wait
+	 * 
+	 * This only ocurs after the client has received the last DIE from the server
+	 * @author Eileen
+	 *
+	 */
+	private class timedWaitTeardown extends TimerTask {
+		public void run() {
+			state=ServerState.CLOSED;
+			serverSocket.close();
+			System.out.println("Task has been run");
+			timedTaskRun = true;
+		}
+	}
 }
+

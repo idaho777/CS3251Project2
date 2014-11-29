@@ -131,7 +131,9 @@ public class RTPClient {
 					System.out.println("RECEIVED");
 					continue;
 				}
-
+				if(checkServerRequestsTermination(receivePacket)){
+					terminateFromServer();
+				}
 				// Assuming valid and Acknowledged
 				if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast())
 				{
@@ -270,6 +272,9 @@ public class RTPClient {
 //					System.out.println("Is not valid");
 					continue;
 				}
+				if(checkServerRequestsTermination(receivePacket)){
+					terminateFromServer();
+				}
 				if (seqNum == receiveHeader.getAckNum())
 				{
 					continue;
@@ -368,7 +373,6 @@ public class RTPClient {
 		int currPacket = 0;
 		int tries = 0;
 		boolean finishedDownloading=false;
-		boolean canDownload = true;
 		while (!finishedDownloading)
 		{
 			try
@@ -380,12 +384,14 @@ public class RTPClient {
 				boolean isLast = receiveHeader.isLast();
 				if (!RTPTools.isValidPacketHeader(receivePacket))
 				{
-					System.out.println("Corrupted");
+					System.out.println("CORRUPTED in " + state);
 					continue;
 				}
 				// Assuming valid and Acknowledged\
 				if (!receiveHeader.isAck()){
 					continue;
+				if(checkServerRequestsTermination(receivePacket)){
+					terminateFromServer();
 				}
 				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
@@ -653,6 +659,110 @@ public class RTPClient {
 		this.windowSize=window;
 	}
 	
+	public void terminateFromServer(){
+		state = ClientState.DIE_WAIT_1;
+		byte[] arr = new byte[PACKET_SIZE];
+		DatagramPacket receivePacket = new DatagramPacket(arr, arr.length);
+		
+		int tries = 0;
+		while (state != ClientState.CLOSED)
+		{
+			try
+			{
+				sendAckCloseState(); //send the DIE, ACK
+				sendDieCloseState(); //send the DIE, LAST
+				clientSocket.receive(receivePacket);
+				
+				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket); // receive the last DIE, ACK
+				
+				// Checksum validation for data received from client
+				if (!RTPTools.isValidPacketHeader(receiveHeader))
+				{
+					// is not Valid Packet, send back
+					// set same flags but ack is false
+					// send same packet as received
+					// so client will resend with same everything
+					continue;
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst())
+				{
+					continue;
+				}
+				
+				if (!receiveHeader.isLive() && receiveHeader.isDie() && receiveHeader.isAck() && receiveHeader.isLast() && !receiveHeader.isFirst())
+				{
+					state = ClientState.CLOSED;
+					clientSocket.close();
+				}
+				
+			}
+			catch (SocketTimeoutException s)
+			{
+				System.out.println("Have not received DIE from Server for termination from the server");
+				if(tries++ >= 5){
+					System.out.println("Unable to terminate the server...");
+					return;
+				}
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	private void sendAckCloseState() throws IOException
+	{
+		// DIE Ack Header
+		RTPPacketHeader dieAckHeader = new RTPPacketHeader();
+		dieAckHeader.setSource(clientPort);
+		dieAckHeader.setDestination(serverPort);
+		dieAckHeader.setChecksum(PRECHECKSUM);
+		dieAckHeader.setSeqNum(0);
+		dieAckHeader.setAckNum(0);
+		dieAckHeader.setFlags(false, true, true, false, false); //ack, die flags on
+		
+		state = ClientState.DIE_WAIT_2;
+
+		byte[] dieAckHeaderBytes = dieAckHeader.getHeaderBytes();
+
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					dieAckHeaderBytes,
+					dieAckHeaderBytes.length,
+					clientIpAddress,
+					clientPort
+				);
+
+		clientSocket.send(sendPacket);
+
+	}
+	
+	private void sendDieCloseState() throws IOException{
+		// Setup header for the DIE packet
+		RTPPacketHeader dieHeader = new RTPPacketHeader();
+		dieHeader.setSource(clientPort);
+		dieHeader.setDestination(serverPort);
+		dieHeader.setSeqNum(10); //should have last seq num 
+		dieHeader.setAckNum(0); //?????? What should these be after the ACK
+		dieHeader.setFlags(false, true, false, false, true); //setting DIE flag on
+		dieHeader.setChecksum(PRECHECKSUM);
+		byte [] headerBytes = dieHeader.getHeaderBytes();
+
+		DatagramPacket diePacket = new DatagramPacket
+				(
+					headerBytes,
+					headerBytes.length,
+					serverIpAddress,
+					serverPort
+				);
+		
+		state = ClientState.LAST_ACK;
+
+		clientSocket.send(diePacket);
+		System.out.println("Server DIE has been sent");
+	}
 	private void resendPacket(DatagramPacket receivePacket) throws IOException
 	{
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
@@ -679,7 +789,43 @@ public class RTPClient {
 		clientSocket.send(sendPacket);
 	}
 
+	
+	public boolean checkServerRequestsTermination(){
+		byte[] receiveMessage = new byte[PACKET_SIZE];
+		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
+		try {
+			clientSocket.receive(receivePacket);
+		} catch (IOException e) {
+			System.err.println("Unable to terminate");
+		}
+		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
+		{
+			System.out.println("RECEIVED");
+			return false;
+		}
 
+		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+		// Assuming valid and Acknowledged, server has sent DIE
+		if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
+			return true;
+		}else{
+			return false;
+		}
+		
+	}
+	
+	public boolean checkServerRequestsTermination(DatagramPacket receivePacket){
+//		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
+//		{
+//			System.out.println("RECEIVED");
+//			return false;
+//		}
+		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+		// Assuming valid and Acknowledged, server has sent DIE
+		return  (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() 
+				&& !receiveHeader.isLive());
+		
+	}
 	/**
 	 * A private class that consists of the task to close down the
 	 * client socket after the timed wait
