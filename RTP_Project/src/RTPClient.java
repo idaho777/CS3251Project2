@@ -289,7 +289,7 @@ public class RTPClient {
 				{
 					if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 					{
-						System.out.println("is not live");
+						//System.out.println("is not live");
 						seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 						ackNum = receiveHeader.getSeqNum();
 						sendingPacket = createPacket(++currPacket);
