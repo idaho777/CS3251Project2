@@ -121,7 +121,9 @@ public class RTPClient {
 		{
 			try
 			{
+				System.out.println("sending");
 				clientSocket.send(setupPacket);
+				System.out.println("sent");
 				clientSocket.receive(receivePacket);
 				RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
 				if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
@@ -129,9 +131,9 @@ public class RTPClient {
 					System.out.println("RECEIVED");
 					continue;
 				}
-				if(checkServerRequestsTermination(receivePacket)){
-					terminateFromServer();
-				}
+//				if(checkServerRequestsTermination(receivePacket)){
+//					terminateFromServer();
+//				}
 				// Assuming valid and Acknowledged
 				if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast())
 				{
@@ -815,23 +817,32 @@ public class RTPClient {
 		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 		try {
+			System.out.println("I am a method");
 			clientSocket.receive(receivePacket);
-		} catch (IOException e) {
-			System.err.println("Unable to terminate");
-		}
-		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
-		{
-			System.out.println("RECEIVED");
-			return false;
-		}
+			System.out.println("Packet received for termination request..." + receivePacket);
+			if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
+			{
+				System.out.println("RECEIVED");
+				return false;
+			}
 
-		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-		// Assuming valid and Acknowledged, server has sent DIE
-		if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
-			return true;
-		}else{
-			return false;
+			RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+			System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + 
+					receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
+			// Assuming valid and Acknowledged, server has sent DIE
+			if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
+				System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + 
+						receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
+				System.out.println("working");
+				return true;
+			}
+		} catch (IOException e) {
+			//System.err.println("Unable to terminate");
 		}
+		
+		return false;
+		
+		
 		
 	}
 	
@@ -842,6 +853,7 @@ public class RTPClient {
 //			return false;
 //		}
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+		System.out.println("Here");
 		// Assuming valid and Acknowledged, server has sent DIE
 		return  (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() 
 				&& !receiveHeader.isLive());

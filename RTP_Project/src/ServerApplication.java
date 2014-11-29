@@ -68,39 +68,38 @@ public class ServerApplication {
 		long end=System.currentTimeMillis();
 	    InputStreamReader fileInputStream=new InputStreamReader(System.in);
 	    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
-	    while (true)
+	    try
 	    {
-//	    try
-//	    {
-//	    	String s = new String("");
+	    	String s = new String("");
 
-			server.openSession();
-//	    	while((System.currentTimeMillis()>=end))
-//	    	{
-//	    	    if (bufferedReader.ready()){
-//	    	    	 s += bufferedReader.readLine();
-//	    	    	 System.out.println("here");
-//
-//	 	    	    System.out.println(s);
-//	 	    	    if(s.equalsIgnoreCase("terminate")){
-//	 	    	    	server.close();
-//	 	    	    	s = "";
-//	 	    	    	System.out.println("Server is terminating...");
-//	 	    	    }else{
-//	 	    	    	System.err.println("Invalid command");
-//	 	    	    	break;
-//	 	    	    }
-//	 	    	}
-//	    	    }
+	    	while((System.currentTimeMillis()>=end))
+	    	{
 
-//	    	bufferedReader.close();
-//	    }
-//	    catch(java.io.IOException e)
-//	    {
-//	    	System.err.println("Server could not be shut down");
-//	        e.printStackTrace();
-//	    }
+	    		server.openSession();
+	    	    if (bufferedReader.ready()){
+	    	    	 s += bufferedReader.readLine();
+	    	    	 System.out.println("here");
+
+	 	    	    System.out.println(s);
+	 	    	    if(s.equalsIgnoreCase("terminate")){
+	 	    	    	server.terminate();
+	 	    	    	s = "";
+	 	    	    	System.out.println("Server is terminating...");
+	 	    	    }else{
+	 	    	    	System.err.println("Invalid command");
+	 	    	    	break;
+	 	    	    }
+	 	    	}
+	    	    }
+
+	    	bufferedReader.close();
 	    }
+	    catch(java.io.IOException e)
+	    {
+	    	System.err.println("Server could not be shut down");
+	        e.printStackTrace();
+	    }
+//		input
 //		String input;
 //		while(true){
 //			//window w 

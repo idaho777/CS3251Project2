@@ -1,6 +1,8 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
@@ -82,148 +84,178 @@ public class ClientApplication {
 		}
 
 		while(true){
-			String cmd = scan.nextLine().toLowerCase();
-			String [] split = cmd.split("\\s+");
-			if(split.length>0 && !cmd.equals("disconnect")){
-				switch(split[0]){
-				case "connect":{
-					if(!connected && client.setup()){
-						System.out.println("Client has successfully connected to the server");
-						connected = true;
-					}else{
-						System.out.println("Cannot connect");
-					}
-					break;
-				}
-				case "post":{
-					if(split.length>1){
-						String fileName = split[1];
-						//						client.startUpload(getFileBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt"));
-						long start = System.nanoTime(); 
+			System.out.println(connected);
+			//			if(connected && client.checkServerRequestsTermination()){
+			//				System.out.println("here");
+			//				client.terminateFromServer();
+			//			}
+			//String cmd = scan.nextLine().toLowerCase();
+			//String [] split = cmd.split("\\s+");
+			long end=System.currentTimeMillis();
+			InputStreamReader fileInputStream=new InputStreamReader(System.in);
+			BufferedReader bufferedReader=new BufferedReader(fileInputStream);
+			try
+			{
+				String s = new String("");
 
-						String filePath = System.getProperty("user.dir") + "/" + fileName;
-						System.out.println(filePath);
-						byte[] file = getFileBytes(filePath);
-						if (file != null)
-						{
-							client.sendName(fileName);
-							client.startUpload(getFileBytes(filePath));	
-						}
-						else
-						{
-							System.out.println("File does not exist");
-						}
-						long elapsedTime = System.nanoTime() - start;
-						System.out.println("Elapsed time: " + elapsedTime);
-						System.out.println("done");
-						/*if(startUpload){
-							System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
+				while((System.currentTimeMillis()>=end))
+				{	
+					s="";
+					if (bufferedReader.ready()){
+						s += bufferedReader.readLine();
+						System.out.println(s);
+						String [] split = s.split("\\s+");
+						if(split.length>0 && !s.equals("disconnect")){
+							switch(split[0]){
+							case "connect":{
+								if(!connected && client.setup()){
+									System.out.println("Client has successfully connected to the server");
+									connected = true;
+								}else{
+									System.out.println("Cannot connect");
+								}
+								break;
+							}
+							case "post":{
+								if(split.length>1){
+									String fileName = split[1];
+									//						client.startUpload(getFileBytes("C:\\Users\\Eileen\\Test\\DHCPMsgExplanation.txt"));
+									long start = System.nanoTime(); 
+
+									String filePath = System.getProperty("user.dir") + "/" + fileName;
+									System.out.println(filePath);
+									byte[] file = getFileBytes(filePath);
+									if (file != null)
+									{
+										client.sendName(fileName);
+										client.startUpload(getFileBytes(filePath));	
+									}
+									else
+									{
+										System.out.println("File does not exist");
+									}
+									long elapsedTime = System.nanoTime() - start;
+									System.out.println("Elapsed time: " + elapsedTime);
+									System.out.println("done");
+									/*if(startUpload){
+		    								System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
+		    							}else{
+		    								System.out.println("Upload failed");
+		    							}*/
+
+								}else{
+									System.err.println("You need another argument after get");
+								}
+								break;
+							}
+							case "get":{
+								if(split.length>1){
+									String pathName = split[1];
+									long start = System.nanoTime(); 
+									downloaded = client.startDownload(pathName); //TODO implement this once this is finished
+									//download file from server
+									if (!downloaded)
+									{
+										System.out.println("File didn't download");
+									}
+									//		    							System.out.println("Done getting");
+									long elapsedTime = (System.nanoTime() - start);
+									double seconds = (double)elapsedTime / 1000000000.0;
+									System.out.println("Elapsed time: " + seconds);
+									/*if(startUpload){
+		    							System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
+		    							}else{
+		    								System.out.println("Upload failed");
+		    							}*/
+
+								}else{
+									System.err.println("You need another argument after post");
+								}
+								break;
+							}
+							case "window":{
+								if(split.length>1){
+									try{
+										int size = Integer.parseInt(split[1]);
+										client.setWindowSize(size);  //change client's max window size
+									}catch(NumberFormatException e){
+										System.err.println("Invalid window size.");
+									}
+								}else{
+									System.err.println("You need another argument after window");
+								}
+								break;
+							}
+							default:{
+								System.err.println("Invalid command.");
+								break;
+							}
+							}
+						}else if(s.equalsIgnoreCase("disconnect")){
+							System.out.println("Disconnecting...");
+							/*if(client.teardown()){
+		    						System.out.println("Client has successfully disconnected from the server");
+		    					}else{
+		    						System.out.println("Unable to disconnect"); //TODO fix and change to this code
+		    					}*/ 
+							client.teardown();
+							scan.close();
+							while(client.getClientState()!=ClientState.CLOSED){
+							}
+							break;
 						}else{
-							System.out.println("Upload failed");
-						}*/
-
-					}else{
-						System.err.println("You need another argument after get");
-					}
-					break;
-				}
-				case "get":{
-					if(split.length>1){
-						String pathName = split[1];
-						long start = System.nanoTime(); 
-						downloaded = client.startDownload(pathName); //TODO implement this once this is finished
-						//download file from server
-						if (!downloaded)
-						{
-							System.out.println("File didn't download");
+							System.err.println("Invalid command.");
+							System.exit(1);
+							break;
 						}
-//						System.out.println("Done getting");
-						long elapsedTime = (System.nanoTime() - start);
-						double seconds = (double)elapsedTime / 1000000000.0;
-						System.out.println("Elapsed time: " + seconds + seconds);
-						/*if(startUpload){
-						System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
-						}else{
-							System.out.println("Upload failed");
-						}*/
-
-					}else{
-						System.err.println("You need another argument after post");
-					}
-					break;
 				}
-				case "window":{
-					if(split.length>1){
-						try{
-							int size = Integer.parseInt(split[1]);
-							client.setWindowSize(size);  //change client's max window size
-						}catch(NumberFormatException e){
-							System.err.println("Invalid window size.");
-						}
-					}else{
-						System.err.println("You need another argument after window");
-					}
-					break;
-				}
-				default:{
-					System.err.println("Invalid command.");
-					break;
-				}
-				}
-			}else if(cmd.equalsIgnoreCase("disconnect")){
-				System.out.println("Disconnecting...");
-				/*if(client.teardown()){
-					System.out.println("Client has successfully disconnected from the server");
-				}else{
-					System.out.println("Unable to disconnect"); //TODO fix and change to this code
-				}*/ 
-				client.teardown();
-				scan.close();
-				while(client.getClientState()!=ClientState.CLOSED){
-				}
-				break;
-			}else{
-				System.err.println("Invalid command.");
-				System.exit(1);
-				break;
+					
+				
 			}
+		
+		}catch(IOException e){
+			
+		}	
 
-		}
 
-		//System.out.println("Shutdown successful");
-		scan.close();
-		System.exit(0);
-
-	}
-
-	public static byte [] getFileBytes(String pathName){
-		Path path = Paths.get(pathName);
-		byte[] data=null;
-		try {
-			data = Files.readAllBytes(path);
-		} catch (NoSuchFileException e1) {
-			return null;
-		} catch (IOException e) {
-			System.err.println("File could not be read");
-			e.printStackTrace();
-		}
-		return data;
-	}
-
-	public static File getFileFromBytes(String pathname, byte [] data){
-		File file = new File(pathname);
-		try (FileOutputStream fop = new FileOutputStream(file)) {
-			// if file doesn't exists, then create it
-			if (!file.exists()) {
-				file.createNewFile();
+			try {
+				bufferedReader.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			fop.write(data);
-			fop.flush();
-			fop.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+			System.exit(0);
 		}
-		return file;
 	}
 
-}
+		public static byte [] getFileBytes(String pathName){
+			Path path = Paths.get(pathName);
+			byte[] data=null;
+			try {
+				data = Files.readAllBytes(path);
+			} catch (NoSuchFileException e1) {
+				return null;
+			} catch (IOException e) {
+				System.err.println("File could not be read");
+				e.printStackTrace();
+			}
+			return data;
+		}
+
+		public static File getFileFromBytes(String pathname, byte [] data){
+			File file = new File(pathname);
+			try (FileOutputStream fop = new FileOutputStream(file)) {
+				// if file doesn't exists, then create it
+				if (!file.exists()) {
+					file.createNewFile();
+				}
+				fop.write(data);
+				fop.flush();
+				fop.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return file;
+		}
+
+	}

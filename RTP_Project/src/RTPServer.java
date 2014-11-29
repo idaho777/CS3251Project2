@@ -34,7 +34,6 @@ public class RTPServer {
 	private DatagramSocket serverSocket;
 	private DatagramPacket sendPacket, receivePacket;
 	private Random rand;
-	private Scanner scan;
 	
 	private ServerState state;
 	private int seqNum, ackNum;
@@ -698,7 +697,7 @@ public class RTPServer {
 			catch (SocketTimeoutException s){
 				System.out.println("Timeout, resend");
 				if(tries++>=5){
-					System.out.println("Unsuccessful Connection");
+					System.out.println("Unsuccessful termination");
 					return false;
 				}
 			}
@@ -732,7 +731,7 @@ public class RTPServer {
 			catch (SocketTimeoutException s){
 				System.out.println("Timeout, resend");
 				if(tries++>=5){
-					System.out.println("Unsuccessful Connection");
+					System.out.println("Unsuccessful termination");
 					return false;
 				}
 			}
@@ -857,5 +856,6 @@ public class RTPServer {
 			timedTaskRun = true;
 		}
 	}
+
 }
 
