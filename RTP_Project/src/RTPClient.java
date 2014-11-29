@@ -202,7 +202,7 @@ public class RTPClient {
 		}
 	}
 	
-	public void sendName(String s)
+	private void sendName(String s)
 	{
 		byte[] name = s.getBytes(Charset.forName("UTF-8"));
 		RTPPacketHeader nameHeader = new RTPPacketHeader();
@@ -314,7 +314,7 @@ public class RTPClient {
 		return true;
 	}
 
-	public DatagramPacket createPacket(int startByteIndex){
+	private DatagramPacket createPacket(int startByteIndex){
 		// Setup header for the data packet
 		int bytesRemaining = fileData.length - startByteIndex * DATA_SIZE;
 		int data_length = (bytesRemaining <= DATA_SIZE) ? bytesRemaining : DATA_SIZE;
@@ -346,14 +346,6 @@ public class RTPClient {
 					serverPort
 				);
 		return dataPacket;
-	}
-
-
-	/**
-	 * Stops the data transfer
-	 */
-	public void stopUpload(){
-
 	}
 
 
@@ -458,11 +450,6 @@ public class RTPClient {
 		return assembleFile();
 	}
 
-	public void stopDownload(){
-		
-		
-
-	}
 	
 	private DatagramPacket receiveDataPacket(DatagramPacket receivePacket, int nextPacketNum, boolean first) throws IOException
 	{
@@ -779,34 +766,8 @@ public class RTPClient {
 		clientSocket.send(terminatePacket);
 		//System.out.println("Server DIE has been sent");
 	}
-	private void resendPacket(DatagramPacket receivePacket) throws IOException
-	{
-		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-		receiveHeader.isAck();
-		receiveHeader.setFlags
-			(
-				receiveHeader.isLive(),
-				receiveHeader.isDie(),
-				false,
-				false,
-				receiveHeader.isLast()
-			);
-		
-		byte[] resendHeaderBytes = receiveHeader.getHeaderBytes();
 	
-		DatagramPacket sendPacket = new DatagramPacket
-				(
-					resendHeaderBytes,
-					resendHeaderBytes.length,
-					serverIpAddress,
-					serverPort
-				);
-		
-		clientSocket.send(sendPacket);
-	}
-
-	
-	public boolean checkServerRequestsTermination(){
+	private boolean checkServerRequestsTermination(){
 		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 		try {
@@ -832,7 +793,7 @@ public class RTPClient {
 		
 	}
 	
-	public boolean checkServerRequestsTermination(DatagramPacket receivePacket){
+	private boolean checkServerRequestsTermination(DatagramPacket receivePacket){
 		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
 		{
 			return false;
