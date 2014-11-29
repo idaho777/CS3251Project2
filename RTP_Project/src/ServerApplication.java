@@ -65,7 +65,6 @@ public class ServerApplication {
 			System.err.println("fta-server must be run as first command in the format of fta-server X A P");
 			System.exit(1);
 		}
-		server.openSession();
 		long end=System.currentTimeMillis();
 	    InputStreamReader fileInputStream=new InputStreamReader(System.in);
 	    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
@@ -75,6 +74,8 @@ public class ServerApplication {
 
 	    	while((System.currentTimeMillis()>=end))
 	    	{
+
+	    		server.openSession();
 	    	    if (bufferedReader.ready()){
 	    	    	 s += bufferedReader.readLine();
 	    	    	 System.out.println("here");

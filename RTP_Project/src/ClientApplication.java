@@ -82,6 +82,11 @@ public class ClientApplication {
 		}
 
 		while(true){
+			System.out.println(connected);
+			if(connected && client.checkServerRequestsTermination()){
+				System.out.println("here");
+				client.terminateFromServer();
+			}
 			String cmd = scan.nextLine().toLowerCase();
 			String [] split = cmd.split("\\s+");
 			if(split.length>0 && !cmd.equals("disconnect")){
@@ -140,7 +145,7 @@ public class ClientApplication {
 //						System.out.println("Done getting");
 						long elapsedTime = (System.nanoTime() - start);
 						double seconds = (double)elapsedTime / 1000000000.0;
-						System.out.println("Elapsed time: " + seconds + seconds);
+						System.out.println("Elapsed time: " + seconds);
 						/*if(startUpload){
 						System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
 						}else{

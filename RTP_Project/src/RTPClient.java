@@ -272,9 +272,9 @@ public class RTPClient {
 //					System.out.println("Is not valid");
 					continue;
 				}
-				if(checkServerRequestsTermination(receivePacket)){
-					terminateFromServer();
-				}
+//				if(checkServerRequestsTermination(receivePacket)){
+//					terminateFromServer();
+//				}
 				if (seqNum == receiveHeader.getAckNum())
 				{
 					continue;
@@ -391,6 +391,8 @@ public class RTPClient {
 				if (!receiveHeader.isAck()){
 					continue;
 				}
+				boolean value = checkServerRequestsTermination(receivePacket);
+				System.out.println("Vaue of termination is: " + value);
 				if(checkServerRequestsTermination(receivePacket)){
 					terminateFromServer();
 				}
@@ -795,23 +797,29 @@ public class RTPClient {
 		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 		try {
+			System.out.println("I am a method");
 			clientSocket.receive(receivePacket);
-		} catch (IOException e) {
-			System.err.println("Unable to terminate");
-		}
-		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
-		{
-			System.out.println("RECEIVED");
-			return false;
-		}
+			System.out.println("Packet received for termination request..." + receivePacket);
+			if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
+			{
+				System.out.println("RECEIVED");
+				return false;
+			}
 
-		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-		// Assuming valid and Acknowledged, server has sent DIE
-		if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
-			return true;
-		}else{
-			return false;
+			RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+			// Assuming valid and Acknowledged, server has sent DIE
+			if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
+				System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
+				System.out.println("working");
+				return true;
+			}
+		} catch (IOException e) {
+			//System.err.println("Unable to terminate");
 		}
+		
+		return false;
+		
+		
 		
 	}
 	
