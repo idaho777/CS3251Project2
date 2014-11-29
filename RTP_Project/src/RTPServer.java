@@ -153,7 +153,7 @@ public class RTPServer {
 				{
 					if (seqNum + 1 == receiveHeader.getAckNum() && ackNum + 1 == receiveHeader.getSeqNum())
 					{
-						//System.out.println("Checking if can download");
+						System.out.println("Checking if can download");
 						sendDownloadAck(receivePacket);
 					}
 					else
@@ -164,8 +164,16 @@ public class RTPServer {
 				// Uploading to client = LIVE FIRST
 				else if (receiveHeader.isLive() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					//System.out.println("Get on ");
-					sendDownload(receivePacket);
+					if (receiveHeader.getSeqNum() == ackNum + 1)
+					{
+						System.out.println("Get on ");
+						sendDownload(receivePacket);
+					}
+					else if (receiveHeader.getAckNum() == seqNum)
+					{
+						System.out.println("Resending live first");
+						resendTest(receivePacket, true);
+					}
 				}
 				// HAND SHAKE ONE = LIVE
 				else if (receiveHeader.isLive() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isFirst() && !receiveHeader.isLast())
@@ -202,6 +210,53 @@ public class RTPServer {
 		return pathName;
 	}
 
+	private void resendTest(DatagramPacket receivePacket, boolean wasAcked) throws IOException
+	{
+		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+		RTPPacketHeader resendHeader = new RTPPacketHeader();
+		resendHeader.setSource(serverPort);
+		resendHeader.setDestination(clientPort);
+		resendHeader.setChecksum(PRECHECKSUM);
+		resendHeader.setWindow(DATA_SIZE);
+		if (wasAcked)
+		{
+			resendHeader.setFlags
+			(
+				receiveHeader.isLive(),
+				receiveHeader.isDie(),
+				true,
+				receiveHeader.isFirst(),
+				receiveHeader.isLast()
+			);
+			resendHeader.setSeqNum(seqNum);
+			resendHeader.setAckNum(ackNum + 1);
+		}
+		else
+		{
+			resendHeader.setFlags
+			(
+				receiveHeader.isLive(),
+				receiveHeader.isDie(),
+				false,
+				receiveHeader.isFirst(),
+				receiveHeader.isLast()
+			);
+		}
+
+		byte[] data = new byte[DATA_SIZE];
+		resendHeader.setHashCode(CheckSum.getHashCode(data));
+		byte[] resendHeaderBytes = resendHeader.getHeaderBytes();
+		byte[] packet = RTPTools.combineHeaderData(resendHeaderBytes, data);
+	
+		DatagramPacket sendPacket = new DatagramPacket
+				(
+					packet,
+					PACKET_SIZE,
+					clientIpAddress,
+					clientPort
+				);
+		serverSocket.send(sendPacket);
+	}
 	
 		
 	private void resendPacket(DatagramPacket receivePacket, boolean wasAcked) throws IOException
@@ -223,7 +278,7 @@ public class RTPServer {
 				receiveHeader.isLast()
 			);
 			resendHeader.setSeqNum(seqNum);
-			resendHeader.setAckNum(ackNum + 1);
+			resendHeader.setAckNum((ackNum + 1) % MAX_SEQ_NUM);
 		}
 		else
 		{
@@ -535,7 +590,7 @@ public class RTPServer {
 		//clearing out byte received buffer and file data for next uploads
 		fileData = null;
 		bytesReceived = new ArrayList<byte []> ();
-		System.out.println("EXIT ASSEMBLE");
+		System.out.println("end");
 	}
 	
 	
@@ -571,6 +626,7 @@ public class RTPServer {
 				
 				if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
+					System.out.println("I am the cause of repeat");
 					continue;
 				}
 				
@@ -621,7 +677,7 @@ public class RTPServer {
 		while (state != ServerState.CLIENT_ACK_SENT){
 			try
 			{
-				System.out.println("Retry #:" + tries);
+				System.out.println("tries:" + tries);
 				serverSocket.send(terminatePacket);
 				serverSocket.receive(receivePacket);
 
@@ -798,6 +854,7 @@ public class RTPServer {
 		public void run() {
 			state=ServerState.CLOSED;
 			serverSocket.close();
+			System.out.println("Task has been run");
 			timedTaskRun = true;
 		}
 	}
