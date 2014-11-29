@@ -130,7 +130,7 @@ public class ClientApplication {
 									{
 										System.out.println("File does not exist");
 									}
-									long elapsedTime = System.nanoTime() - start;
+									long elapsedTime = (System.nanoTime() - start)/1000000000;
 									System.out.println("Elapsed time: " + elapsedTime);
 									if(success){
 		    								System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
