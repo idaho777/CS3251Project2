@@ -131,9 +131,9 @@ public class RTPClient {
 					System.out.println("RECEIVED");
 					continue;
 				}
-				if(checkServerRequestsTermination(receivePacket)){
-					terminateFromServer();
-				}
+//				if(checkServerRequestsTermination(receivePacket)){
+//					terminateFromServer();
+//				}
 				// Assuming valid and Acknowledged
 				if (receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isLast())
 				{
@@ -391,11 +391,11 @@ public class RTPClient {
 				if (!receiveHeader.isAck()){
 					continue;
 				}
-				boolean value = checkServerRequestsTermination(receivePacket);
-				System.out.println("Vaue of termination is: " + value);
-				if(checkServerRequestsTermination(receivePacket)){
-					terminateFromServer();
-				}
+//				boolean value = checkServerRequestsTermination(receivePacket);
+//				System.out.println("Vaue of termination is: " + value);
+//				if(checkServerRequestsTermination(receivePacket)){
+//					terminateFromServer();
+//				}
 				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
 					System.out.println("Ack First");
@@ -807,9 +807,12 @@ public class RTPClient {
 			}
 
 			RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
+			System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + 
+					receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
 			// Assuming valid and Acknowledged, server has sent DIE
 			if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
-				System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
+				System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + 
+						receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
 				System.out.println("working");
 				return true;
 			}

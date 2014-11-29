@@ -83,10 +83,10 @@ public class ClientApplication {
 
 		while(true){
 			System.out.println(connected);
-			if(connected && client.checkServerRequestsTermination()){
-				System.out.println("here");
-				client.terminateFromServer();
-			}
+//			if(connected && client.checkServerRequestsTermination()){
+//				System.out.println("here");
+//				client.terminateFromServer();
+//			}
 			String cmd = scan.nextLine().toLowerCase();
 			String [] split = cmd.split("\\s+");
 			if(split.length>0 && !cmd.equals("disconnect")){
