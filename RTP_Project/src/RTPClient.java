@@ -202,7 +202,7 @@ public class RTPClient {
 		}
 	}
 	
-	private void sendName(String s)
+	public void sendName(String s)
 	{
 		byte[] name = s.getBytes(Charset.forName("UTF-8"));
 		RTPPacketHeader nameHeader = new RTPPacketHeader();
@@ -767,7 +767,7 @@ public class RTPClient {
 		//System.out.println("Server DIE has been sent");
 	}
 	
-	private boolean checkServerRequestsTermination(){
+	public boolean checkServerRequestsTermination(){
 		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 		try {
@@ -793,7 +793,7 @@ public class RTPClient {
 		
 	}
 	
-	private boolean checkServerRequestsTermination(DatagramPacket receivePacket){
+	public boolean checkServerRequestsTermination(DatagramPacket receivePacket){
 		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
 		{
 			return false;
