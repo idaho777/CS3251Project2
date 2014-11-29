@@ -81,14 +81,7 @@ public class ClientApplication {
 		}else{
 			System.err.println("fta-client must be run as first command in the format of fta-client X A P");
 			System.exit(1);
-		}
-
-		while(true){
-			System.out.println(connected);
-			//			if(connected && client.checkServerRequestsTermination()){
-			//				System.out.println("here");
-			//				client.terminateFromServer();
-			//			}
+		}	
 			//String cmd = scan.nextLine().toLowerCase();
 			//String [] split = cmd.split("\\s+");
 			long end=System.currentTimeMillis();
@@ -100,6 +93,16 @@ public class ClientApplication {
 
 				while((System.currentTimeMillis()>=end))
 				{	
+					if(connected){
+						if(client.checkServerRequestsTermination()){
+							if(client.terminateFromServer()){
+								System.out.println("Server was successfully terminated..");
+								System.exit(0);
+							}else{
+								System.out.println("Server was not terminated");
+							}
+						}
+					}
 					s="";
 					if (bufferedReader.ready()){
 						s += bufferedReader.readLine();
@@ -124,11 +127,12 @@ public class ClientApplication {
 
 									String filePath = System.getProperty("user.dir") + "/" + fileName;
 									System.out.println(filePath);
+									boolean success=false;
 									byte[] file = getFileBytes(filePath);
 									if (file != null)
 									{
 										client.sendName(fileName);
-										client.startUpload(getFileBytes(filePath));	
+										success = client.startUpload(getFileBytes(filePath));	
 									}
 									else
 									{
@@ -136,12 +140,12 @@ public class ClientApplication {
 									}
 									long elapsedTime = System.nanoTime() - start;
 									System.out.println("Elapsed time: " + elapsedTime);
-									System.out.println("done");
-									/*if(startUpload){
+									if(success){
 		    								System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
-		    							}else{
+		    							}
+									else{
 		    								System.out.println("Upload failed");
-		    							}*/
+		    						}
 
 								}else{
 									System.err.println("You need another argument after get");
@@ -157,16 +161,11 @@ public class ClientApplication {
 									if (!downloaded)
 									{
 										System.out.println("File didn't download");
+									}else{
+										long elapsedTime = (System.nanoTime() - start);
+										double seconds = (double)elapsedTime / 1000000000.0;
+										System.out.println("Successfully uploaded in " + seconds + " seconds");
 									}
-									//		    							System.out.println("Done getting");
-									long elapsedTime = (System.nanoTime() - start);
-									double seconds = (double)elapsedTime / 1000000000.0;
-									System.out.println("Elapsed time: " + seconds);
-									/*if(startUpload){
-		    							System.out.println("Successfully uploaded in " + elapsedTime + " seconds");
-		    							}else{
-		    								System.out.println("Upload failed");
-		    							}*/
 
 								}else{
 									System.err.println("You need another argument after post");
@@ -202,20 +201,19 @@ public class ClientApplication {
 							scan.close();
 							while(client.getClientState()!=ClientState.CLOSED){
 							}
-							break;
 						}else{
 							System.err.println("Invalid command.");
 							System.exit(1);
 							break;
 						}
+					}
+
+
 				}
-					
-				
-			}
-		
-		}catch(IOException e){
-			
-		}	
+
+			}catch(IOException e){
+
+			}	
 
 
 			try {
@@ -225,37 +223,36 @@ public class ClientApplication {
 				e.printStackTrace();
 			}
 			System.exit(0);
-		}
 	}
 
-		public static byte [] getFileBytes(String pathName){
-			Path path = Paths.get(pathName);
-			byte[] data=null;
-			try {
-				data = Files.readAllBytes(path);
-			} catch (NoSuchFileException e1) {
-				return null;
-			} catch (IOException e) {
-				System.err.println("File could not be read");
-				e.printStackTrace();
-			}
-			return data;
+	public static byte [] getFileBytes(String pathName){
+		Path path = Paths.get(pathName);
+		byte[] data=null;
+		try {
+			data = Files.readAllBytes(path);
+		} catch (NoSuchFileException e1) {
+			return null;
+		} catch (IOException e) {
+			System.err.println("File could not be read");
+			e.printStackTrace();
 		}
-
-		public static File getFileFromBytes(String pathname, byte [] data){
-			File file = new File(pathname);
-			try (FileOutputStream fop = new FileOutputStream(file)) {
-				// if file doesn't exists, then create it
-				if (!file.exists()) {
-					file.createNewFile();
-				}
-				fop.write(data);
-				fop.flush();
-				fop.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			return file;
-		}
-
+		return data;
 	}
+
+	public static File getFileFromBytes(String pathname, byte [] data){
+		File file = new File(pathname);
+		try (FileOutputStream fop = new FileOutputStream(file)) {
+			// if file doesn't exists, then create it
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+			fop.write(data);
+			fop.flush();
+			fop.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return file;
+	}
+
+}

@@ -61,7 +61,6 @@ public class RTPTools {
 		int hashCode = header.getHashCode();
 		byte [] data = extractData(packet);
 		boolean hashCodes = (hashCode==CheckSum.getHashCode(data));
-//		System.out.println(hashCode + " " + CheckSum.getHashCode(data));
 		return (CheckSum.getChecksum(headerChecksum) == CHECKSUM) && (hashCodes);
 	}
 

@@ -66,77 +66,80 @@ public class ServerApplication {
 			System.exit(1);
 		}
 		long end=System.currentTimeMillis();
-	    InputStreamReader fileInputStream=new InputStreamReader(System.in);
-	    BufferedReader bufferedReader=new BufferedReader(fileInputStream);
-	    try
-	    {
-	    	String s = new String("");
+		InputStreamReader fileInputStream=new InputStreamReader(System.in);
+		BufferedReader bufferedReader=new BufferedReader(fileInputStream);
+		try
+		{
+			String s = new String("");
 
-	    	while((System.currentTimeMillis()>=end))
-	    	{
+			while((System.currentTimeMillis()>=end))
+			{
 
-	    		server.openSession();
-	    	    if (bufferedReader.ready()){
-	    	    	 s += bufferedReader.readLine();
-	    	    	 System.out.println("here");
+				s = "";
+				server.openSession();
+				if (bufferedReader.ready()){
+					s += bufferedReader.readLine();
+					System.out.println("here");
 
-	 	    	    System.out.println(s);
-	 	    	    if(s.equalsIgnoreCase("terminate")){
-	 	    	    	server.terminate();
-	 	    	    	s = "";
-	 	    	    	System.out.println("Server is terminating...");
-	 	    	    }else{
-	 	    	    	System.err.println("Invalid command");
-	 	    	    	break;
-	 	    	    }
-	 	    	}
-	    	    }
+					System.out.println(s);
+					if(s.equalsIgnoreCase("terminate")){
+						if(server.terminate()){
+							System.out.println("Server termination successful");
+							System.exit(0);
+						}else{
+							System.out.println("Server termination failed");
+						}
+					}else{
+						System.err.println("Invalid command");
+					}
+				}
+			}
 
-	    	bufferedReader.close();
-	    }
-	    catch(java.io.IOException e)
-	    {
-	    	System.err.println("Server could not be shut down");
-	        e.printStackTrace();
-	    }
-//		input
-//		String input;
-//		while(true){
-//			//window w 
-//			//terminate
-//			input = server.openSession();
-//			System.out.println("Timeout");
-//			
-////			Scanner scan = new Scanner(System.in);
-//
-//			String cmd = null;
-////				 cmd = scan.nextLine().toLowerCase();
-//			
-//			if (cmd == null)
-//			{
-//				continue;
-//			}
-//			String [] split = cmd.split("\\s+");
-//			if(split.length>0 && !cmd.equals("terminate")){
-//				if(split.length>1 && split[0].equalsIgnoreCase("window")){
-//					try{
-//						int windowSize = Integer.parseInt(split[1]);
-//						server.setWindowSize(windowSize);
-//					}catch(NumberFormatException e){
-//						System.err.println("Enter a valid window size.");
-//					}
-//				}
-//			}else if(cmd.equalsIgnoreCase("terminate")){
-//				System.out.println("Terminating...");
-////				scan.close();
-//				break;
-//			}else{
-//				System.err.println("Invalid command.");
-//				System.exit(1);
-//			}
-//		}
-//		System.out.println("Shutdown successful");
-//		System.exit(0);
+			bufferedReader.close();
+		}
+		catch(java.io.IOException e)
+		{
+			System.err.println("Server could not be shut down");
+			e.printStackTrace();
+		}
+		//		input
+		//		String input;
+		//		while(true){
+		//			//window w 
+		//			//terminate
+		//			input = server.openSession();
+		//			System.out.println("Timeout");
+		//			
+		////			Scanner scan = new Scanner(System.in);
+		//
+		//			String cmd = null;
+		////				 cmd = scan.nextLine().toLowerCase();
+		//			
+		//			if (cmd == null)
+		//			{
+		//				continue;
+		//			}
+		//			String [] split = cmd.split("\\s+");
+		//			if(split.length>0 && !cmd.equals("terminate")){
+		//				if(split.length>1 && split[0].equalsIgnoreCase("window")){
+		//					try{
+		//						int windowSize = Integer.parseInt(split[1]);
+		//						server.setWindowSize(windowSize);
+		//					}catch(NumberFormatException e){
+		//						System.err.println("Enter a valid window size.");
+		//					}
+		//				}
+		//			}else if(cmd.equalsIgnoreCase("terminate")){
+		//				System.out.println("Terminating...");
+		////				scan.close();
+		//				break;
+		//			}else{
+		//				System.err.println("Invalid command.");
+		//				System.exit(1);
+		//			}
+		//		}
+		//		System.out.println("Shutdown successful");
+		//		System.exit(0);
 
 	}
 	public static byte [] getFileBytes(String pathName){

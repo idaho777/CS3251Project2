@@ -153,7 +153,7 @@ public class RTPServer {
 				{
 					if (seqNum + 1 == receiveHeader.getAckNum() && ackNum + 1 == receiveHeader.getSeqNum())
 					{
-						System.out.println("Checking if can download");
+						//System.out.println("Checking if can download");
 						sendDownloadAck(receivePacket);
 					}
 					else
@@ -164,7 +164,7 @@ public class RTPServer {
 				// Uploading to client = LIVE FIRST
 				else if (receiveHeader.isLive() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					System.out.println("Get on ");
+					//System.out.println("Get on ");
 					sendDownload(receivePacket);
 				}
 				// HAND SHAKE ONE = LIVE
@@ -187,7 +187,7 @@ public class RTPServer {
 				}
 				else
 				{
-					System.out.println("hAHAHAHHAHAHAHAH");
+					//System.out.println("hAHAHAHHAHAHAHAH");
 				}
 			}
 			catch (SocketTimeoutException s)
@@ -571,7 +571,6 @@ public class RTPServer {
 				
 				if (!receiveHeader.isLive() && receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast())
 				{
-					System.out.println("I am the cause of repeat");
 					continue;
 				}
 				
@@ -605,20 +604,24 @@ public class RTPServer {
 		RTPPacketHeader dieHeader = new RTPPacketHeader();
 		dieHeader.setSource(serverPort);
 		dieHeader.setDestination(clientPort);
-		dieHeader.setSeqNum(0); //should have last seq num
-		dieHeader.setAckNum(0);
+		dieHeader.setSeqNum(seqNum); //should have last seq num
+		dieHeader.setAckNum(ackNum);
 		dieHeader.setFlags(false, true, false, false, false); //setting DIE flag on
 		dieHeader.setChecksum(PRECHECKSUM);
+		dieHeader.setWindow(DATA_SIZE);
+		byte [] data = new byte[DATA_SIZE];
+		dieHeader.setHashCode(CheckSum.getHashCode(data));
 		byte [] headerBytes = dieHeader.getHeaderBytes();
+		byte [] packet = RTPTools.combineHeaderData(headerBytes, data);
 
-		DatagramPacket terminatePacket = new DatagramPacket(headerBytes, HEADER_SIZE, clientIpAddress, clientPort);
+		DatagramPacket terminatePacket = new DatagramPacket(packet, PACKET_SIZE, clientIpAddress, clientPort);
 		
 		int tries = 0;
 		state = ServerState.CLOSE_WAIT1;
 		while (state != ServerState.CLIENT_ACK_SENT){
 			try
 			{
-				System.out.println("tries:" + tries);
+				System.out.println("Retry #:" + tries);
 				serverSocket.send(terminatePacket);
 				serverSocket.receive(receivePacket);
 
@@ -665,7 +668,9 @@ public class RTPServer {
 					sendCloseAckState(); //sends the final ACK	
 					if(timer==null){
 						timer = new Timer();
+						state=ServerState.TIMED_WAIT;
 						timer.schedule(new timedWaitTeardown(), 5*100); //timedwaitTeardown changes state and closes socket
+						return true;
 					}
 				}
 			}
@@ -793,7 +798,6 @@ public class RTPServer {
 		public void run() {
 			state=ServerState.CLOSED;
 			serverSocket.close();
-			System.out.println("Task has been run");
 			timedTaskRun = true;
 		}
 	}

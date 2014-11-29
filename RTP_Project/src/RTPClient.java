@@ -251,7 +251,7 @@ public class RTPClient {
 	/**
 	 * Starts sending data transfer
 	 */
-	public void startUpload(byte [] file){
+	public boolean startUpload(byte [] file){
 		fileData = file;
 		bytesRemaining = fileData.length;
 		int packetNumber = (fileData.length / DATA_SIZE) + ((fileData.length % DATA_SIZE > 0) ? 1 : 0);
@@ -283,7 +283,6 @@ public class RTPClient {
 				{
 					if (!receiveHeader.isLive() && receiveHeader.isAck() && !receiveHeader.isDie() && !receiveHeader.isLast())
 					{
-						System.out.println("is not live");
 						seqNum = (seqNum + 1) % MAX_SEQ_NUM;
 						ackNum = receiveHeader.getSeqNum();
 						sendingPacket = createPacket(++currPacket);
@@ -294,16 +293,19 @@ public class RTPClient {
 						ackNum = receiveHeader.getSeqNum();
 						currPacket++;
 						System.out.println("I have received the last ack!");
+						return true;
 					}	
 				}
 			} catch (SocketTimeoutException s) {
 				System.out.println("Timeout, resend");
+				return false;
 			} catch (IOException e) {
 				e.printStackTrace();
+				return false;
 			}
 
 		}
-		System.out.println("OUTSIDE LOOP");
+		return true;
 	}
 
 	public DatagramPacket createPacket(int startByteIndex){
@@ -393,9 +395,9 @@ public class RTPClient {
 				}
 //				boolean value = checkServerRequestsTermination(receivePacket);
 //				System.out.println("Vaue of termination is: " + value);
-//				if(checkServerRequestsTermination(receivePacket)){
-//					terminateFromServer();
-//				}
+				if(checkServerRequestsTermination(receivePacket)){
+					terminateFromServer();
+				}
 				if (receiveHeader.isLive() && receiveHeader.isAck() && receiveHeader.isFirst() && !receiveHeader.isDie() && !receiveHeader.isLast())
 				{
 					System.out.println("Ack First");
@@ -413,7 +415,6 @@ public class RTPClient {
 				// Cannot find file
 				else if (receiveHeader.isDie() && receiveHeader.isFirst() && receiveHeader.isAck())
 				{
-					System.out.println("WTF");
 					return false;
 				}
 				else
@@ -662,7 +663,7 @@ public class RTPClient {
 		this.windowSize=window;
 	}
 	
-	public void terminateFromServer(){
+	public boolean terminateFromServer(){
 		state = ClientState.DIE_WAIT_1;
 		byte[] arr = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(arr, arr.length);
@@ -697,6 +698,8 @@ public class RTPClient {
 				{
 					state = ClientState.CLOSED;
 					clientSocket.close();
+					System.out.println("Socket closed");
+					return true;
 				}
 				
 			}
@@ -705,14 +708,15 @@ public class RTPClient {
 				System.out.println("Have not received DIE from Server for termination from the server");
 				if(tries++ >= 5){
 					System.out.println("Unable to terminate the server...");
-					return;
+					return false;
 				}
 			}
 			catch (IOException e)
-			{
-				e.printStackTrace();
+			{	
+				return false;
 			}
 		}
+		return true;
 	}
 	
 	private void sendAckCloseState() throws IOException
@@ -724,19 +728,13 @@ public class RTPClient {
 		dieAckHeader.setChecksum(PRECHECKSUM);
 		dieAckHeader.setSeqNum(0);
 		dieAckHeader.setAckNum(0);
-		dieAckHeader.setFlags(false, true, true, false, false); //ack, die flags on
-		
-		state = ClientState.DIE_WAIT_2;
+		dieAckHeader.setFlags(false, true, true, false, false); //ack, die flags ondieHeader.setWindow(DATA_SIZE);
+		byte [] data = new byte[DATA_SIZE];
+		dieAckHeader.setHashCode(CheckSum.getHashCode(data));
+		byte [] headerBytes = dieAckHeader.getHeaderBytes();
+		byte [] packet = RTPTools.combineHeaderData(headerBytes, data);
 
-		byte[] dieAckHeaderBytes = dieAckHeader.getHeaderBytes();
-
-		DatagramPacket sendPacket = new DatagramPacket
-				(
-					dieAckHeaderBytes,
-					dieAckHeaderBytes.length,
-					clientIpAddress,
-					clientPort
-				);
+		DatagramPacket sendPacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
 
 		clientSocket.send(sendPacket);
 
@@ -747,23 +745,22 @@ public class RTPClient {
 		RTPPacketHeader dieHeader = new RTPPacketHeader();
 		dieHeader.setSource(clientPort);
 		dieHeader.setDestination(serverPort);
-		dieHeader.setSeqNum(10); //should have last seq num 
-		dieHeader.setAckNum(0); //?????? What should these be after the ACK
+		dieHeader.setSeqNum(seqNum); //should have last seq num 
+		dieHeader.setAckNum(ackNum); //?????? What should these be after the ACK
 		dieHeader.setFlags(false, true, false, false, true); //setting DIE flag on
 		dieHeader.setChecksum(PRECHECKSUM);
+		dieHeader.setWindow(DATA_SIZE);
+		byte [] data = new byte[DATA_SIZE];
+		dieHeader.setHashCode(CheckSum.getHashCode(data));
 		byte [] headerBytes = dieHeader.getHeaderBytes();
+		byte [] packet = RTPTools.combineHeaderData(headerBytes, data);
 
-		DatagramPacket diePacket = new DatagramPacket
-				(
-					headerBytes,
-					headerBytes.length,
-					serverIpAddress,
-					serverPort
-				);
+		DatagramPacket terminatePacket = new DatagramPacket(packet, PACKET_SIZE, serverIpAddress, serverPort);
+		
 		
 		state = ClientState.LAST_ACK;
 
-		clientSocket.send(diePacket);
+		clientSocket.send(terminatePacket);
 		System.out.println("Server DIE has been sent");
 	}
 	private void resendPacket(DatagramPacket receivePacket) throws IOException
@@ -797,24 +794,19 @@ public class RTPClient {
 		byte[] receiveMessage = new byte[PACKET_SIZE];
 		DatagramPacket receivePacket = new DatagramPacket(receiveMessage, receiveMessage.length);
 		try {
-			System.out.println("I am a method");
 			clientSocket.receive(receivePacket);
-			System.out.println("Packet received for termination request..." + receivePacket);
 			if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
 			{
-				System.out.println("RECEIVED");
+				System.out.println("CORRUPT RECEIVED");
 				return false;
 			}
 
 			RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-			System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + 
-					receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
 			// Assuming valid and Acknowledged, server has sent DIE
 			if (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() && !receiveHeader.isLive()){
-				System.out.println("Flags: " + receiveHeader.isLive() + receiveHeader.isDie() + 
-						receiveHeader.isAck() + receiveHeader.isFirst() + receiveHeader.isLast());
-				System.out.println("working");
+				
 				return true;
+				
 			}
 		} catch (IOException e) {
 			//System.err.println("Unable to terminate");
@@ -827,13 +819,12 @@ public class RTPClient {
 	}
 	
 	public boolean checkServerRequestsTermination(DatagramPacket receivePacket){
-//		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
-//		{
-//			System.out.println("RECEIVED");
-//			return false;
-//		}
+		if (!RTPTools.isValidPacketHeader(receivePacket))	//Corrupted
+		{
+			System.out.println("RECEIVED");
+			return false;
+		}
 		RTPPacketHeader receiveHeader = RTPTools.getHeader(receivePacket);
-		System.out.println("Here");
 		// Assuming valid and Acknowledged, server has sent DIE
 		return  (receiveHeader.isDie() && !receiveHeader.isAck() && !receiveHeader.isLast() && !receiveHeader.isFirst() 
 				&& !receiveHeader.isLive());
@@ -851,7 +842,6 @@ public class RTPClient {
 		public void run() {
 			state=ClientState.CLOSED;
 			clientSocket.close();
-			System.out.println("Task has been run");
 			timedTaskRun = true;
 		}
 	}
